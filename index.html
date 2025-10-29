@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>pHFLEX WebAR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- A-Frame & AR.js -->
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+    <script src="https://cdn.rawgit.com/jeromeetienne/AR.js/2.2.1/aframe/build/aframe-ar.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <style>body { margin:0; overflow:hidden; }</style>
+  </head>
+
+  <body>
+    <a-scene embedded arjs>
+      <a-marker preset="hiro">
+        <a-box id="liquid" position="0 0.1 0" color="#00ff00" depth="0.1" height="0.2" width="0.1"></a-box>
+        <a-entity id="phText" position="0 0.5 0" text="value: pH: --; align:center; width:2; color:white"></a-entity>
+        <a-entity id="noteText" position="0 -0.5 0" text="value: Waiting for data...; align:center; width:2; color:yellow"></a-entity>
+      </a-marker>
+      <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+      // Paste your Firebase config below (from Firebase console)
+      const firebaseConfig = {
+     const firebaseConfig = {
+  apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
+  authDomain: "phflex-48cfa.firebaseapp.com",
+  databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "phflex-48cfa",
+  storageBucket: "phflex-48cfa.firebasestorage.app",
+  messagingSenderId: "1019182703407",
+  appId: "1:1019182703407:web:6e1c5834f611208c59f7da",
+  measurementId: "G-80XN89H5P1"
+};
+
+      firebase.initializeApp(firebaseConfig);
+
+      const db = firebase.database();
+      const phText = document.querySelector('#phText');
+      const liquid = document.querySelector('#liquid');
+      const noteText = document.querySelector('#noteText');
+
+      db.ref('/pHFLEX/currentValue').on('value', (snap) => {
+        const pH = parseFloat(snap.val());
+        phText.setAttribute('text', 'value', 'Current pH = ' + pH.toFixed(2));
+
+        if (pH < 7) liquid.setAttribute('color', '#ff3333');
+        else if (pH === 7) liquid.setAttribute('color', '#33ff77');
+        else liquid.setAttribute('color', '#3388ff');
+
+        let note = '';
+        if (pH < 3) note = 'Strong Acid ⚗️ - Handle with care!';
+        else if (pH < 7) note = 'Acidic - Corrosive to metals';
+        else if (pH === 7) note = 'Neutral - Pure water';
+        else if (pH < 11) note = 'Basic - Mild alkali';
+        else note = 'Strong Base 🧪 - Highly reactive!';
+        noteText.setAttribute('text', 'value', note);
+      });
+    </script>
+  </body>
+</html>
