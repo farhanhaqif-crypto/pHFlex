@@ -114,9 +114,21 @@
       const phText = document.querySelector("#phText");
       const statusText = document.querySelector("#statusText");
       const exampleText = document.querySelector("#exampleText");
-      const formulaText = document.querySelector("#formulaText");
       const sifatText = document.querySelector("#sifatText");
       const liquid = document.querySelector("#liquid");
+
+      // ✅ Helper function: smooth animation
+      function animatePosition(entity, startY, endY, duration = 1000) {
+        let start = null;
+        function step(timestamp) {
+          if (!start) start = timestamp;
+          const progress = Math.min((timestamp - start) / duration, 1);
+          const y = startY + (endY - startY) * progress;
+          entity.setAttribute("position", `0 ${y} 0`);
+          if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
 
       // Listen for live data
       db.ref("/pHFLEX/currentValue").on("value", (snap) => {
@@ -133,24 +145,28 @@
         let status = "";
         let example = "";
         let sifat = "";
+        let height = 0.1; // default
 
         if (pH < 7) {
           color = "#ff3333"; // Red
           status = "Acidic (Asid)";
-          sifat = "Sifat: Menghakis, rasa masam.";
+          sifat = "Menghakis, rasa masam.";
           if (pH < 3) example = "Example: Asid kuat (asid sulfurik, jus lemon)";
           else example = "Example: Asid lemah (cuka, minuman berkarbonat)";
+          height = 0.05 + (pH / 14); // lower for acid
         } else if (pH > 7) {
           color = "#3388ff"; // Blue
           status = "Basic (Alkali)";
-          sifat = "Sifat: Licin, rasa sabun.";
+          sifat = "Licin, rasa sabun.";
           if (pH > 11) example = "Example: Alkali kuat (peluntur, ammonia)";
           else example = "Example: Alkali lemah (sabun, air sabun)";
+          height = 0.15 + (pH / 70); // higher for base
         } else {
           color = "#33ff77"; // Green
           status = "Neutral";
           example = "Example: Air suling";
-          sifat = "Sifat: Tidak berasid / tidak beralkali";
+          sifat = "Tidak berasid / tidak beralkali";
+          height = 0.1;
         }
 
         // Update visuals
@@ -158,7 +174,13 @@
         statusText.setAttribute("text", "value", status);
         exampleText.setAttribute("text", "value", example);
         sifatText.setAttribute("text", "value", sifat);
+
+        // ✅ Animate cube movement
+        const currentY = parseFloat(liquid.getAttribute("position").y);
+        const targetY = height;
+        animatePosition(liquid, currentY, targetY, 1000);
       });
     </script>
   </body>
 </html>
+
