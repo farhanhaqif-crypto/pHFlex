@@ -20,13 +20,6 @@
         display: flex; align-items: center; justify-content: center;
         background: #000; color: #fff; font-family: sans-serif; z-index: 10;
       }
-      .fade {
-        transition: opacity 1s ease-in-out;
-        opacity: 0;
-      }
-      .fade.show {
-        opacity: 1;
-      }
     </style>
   </head>
 
@@ -40,10 +33,10 @@
       vr-mode-ui="enabled: false"
       renderer="logarithmicDepthBuffer: true;"
     >
-      <!-- Marker -->
-      <a-marker preset="hiro">
+      <!-- ✅ Use your own marker file -->
+      <a-marker type="pattern" url="pHFlex.patt">
 
-        <!-- Cube -->
+        <!-- ✅ Transparent glowing cube (liquid) -->
         <a-box
           id="liquid"
           position="0 0.1 0"
@@ -51,37 +44,35 @@
           height="0.2"
           width="0.1"
           color="#33ff77"
+          material="opacity: 0.6; transparent: true; emissive: #33ff77; emissiveIntensity: 0.5; metalness: 0.3; roughness: 0.1;"
+          animation__glow="property: material.emissiveIntensity; dir: alternate; dur: 1500; easing: easeInOutSine; loop: true; to: 1"
         ></a-box>
 
-        <!-- pH Value -->
+        <!-- ✅ Text labels -->
         <a-entity
           id="phText"
           position="0 0.5 0"
           text="value: pH Value: Waiting...; align: center; width: 3; color: white"
         ></a-entity>
 
-        <!-- Acid/Alkali status -->
         <a-entity
           id="statusText"
           position="0 0.7 0"
           text="value: Status: Waiting for reading...; align: center; width: 3; color: yellow"
         ></a-entity>
 
-        <!-- Example -->
         <a-entity
           id="exampleText"
           position="0 0.9 0"
           text="value: Example: Tap water 💧; align: center; width: 3; color: lightgreen"
         ></a-entity>
 
-        <!-- Formula -->
         <a-entity
           id="formulaText"
           position="0 1.1 0"
           text="value: Formula: pH = -log[H⁺]; align: center; width: 3; color: cyan"
         ></a-entity>
 
-        <!-- Sifat -->
         <a-entity
           id="sifatText"
           position="0 1.3 0"
@@ -94,7 +85,7 @@
     </a-scene>
 
     <script>
-      // Hide loading after camera starts
+      // Hide loading once camera starts
       window.addEventListener("load", () => {
         setTimeout(() => {
           document.getElementById("loading").style.display = "none";
@@ -113,18 +104,18 @@
         measurementId: "G-80XN89H5P1",
       };
 
-      // Initialize Firebase
+      // ✅ Initialize Firebase
       firebase.initializeApp(firebaseConfig);
       const db = firebase.database();
 
-      // Get AR elements
+      // ✅ Select AR elements
       const phText = document.querySelector("#phText");
       const statusText = document.querySelector("#statusText");
       const exampleText = document.querySelector("#exampleText");
       const sifatText = document.querySelector("#sifatText");
       const liquid = document.querySelector("#liquid");
 
-      // Smooth cube animation
+      // Smooth animation for cube height
       function animatePosition(entity, startY, endY, duration = 1000) {
         let start = null;
         function step(timestamp) {
@@ -137,51 +128,36 @@
         requestAnimationFrame(step);
       }
 
-      // Fade text update
-      function fadeUpdate(entity, textValue) {
-        entity.setAttribute("text", "value", textValue);
-        entity.classList.remove("show");
-        void entity.offsetWidth; // trigger reflow
-        entity.classList.add("show");
-      }
-
-      // ✅ Listen for live data (correct Firebase path)
+      // ✅ Listen for live Firebase updates
       db.ref("/pHFlex/currentValue").on("value", (snap) => {
         const value = snap.val();
-        if (value === null) {
-          fadeUpdate(phText, "No pH data found!");
+        if (value === null || value === "") {
+          phText.setAttribute("text", "value", "No pH data found!");
           return;
         }
 
         const pH = parseFloat(value);
-        fadeUpdate(phText, "pH Value: " + pH.toFixed(2));
+        phText.setAttribute("text", "value", "pH Value: " + pH.toFixed(2));
 
-        let color = "#33ff77"; // Default (neutral)
+        let color = "#33ff77";
         let status = "";
         let example = "";
         let sifat = "";
         let height = 0.1;
 
-        // Acidic
         if (pH < 7) {
           color = "#ff3333";
           status = "Acidic (Asid)";
           sifat = "Menghakis, rasa masam.";
-          if (pH < 3) example = "Example: Asid kuat (asid sulfurik, jus lemon)";
-          else example = "Example: Asid lemah (cuka, minuman berkarbonat)";
+          example = pH < 3 ? "Example: Asid kuat (asid sulfurik, jus lemon)" : "Example: Asid lemah (cuka, minuman berkarbonat)";
           height = 0.05 + (pH / 14);
-        }
-        // Basic
-        else if (pH > 7) {
+        } else if (pH > 7) {
           color = "#3388ff";
           status = "Basic (Alkali)";
           sifat = "Licin, rasa sabun.";
-          if (pH > 11) example = "Example: Alkali kuat (peluntur, ammonia)";
-          else example = "Example: Alkali lemah (sabun, air sabun)";
+          example = pH > 11 ? "Example: Alkali kuat (peluntur, ammonia)" : "Example: Alkali lemah (sabun, air sabun)";
           height = 0.15 + (pH / 70);
-        }
-        // Neutral
-        else {
+        } else {
           color = "#33ff77";
           status = "Neutral";
           example = "Example: Air suling";
@@ -189,12 +165,13 @@
           height = 0.1;
         }
 
-        // Update visuals
+        // ✅ Update visuals
         liquid.setAttribute("color", color);
+        liquid.setAttribute("material", `opacity: 0.6; transparent: true; emissive: ${color}; emissiveIntensity: 0.8; metalness: 0.3; roughness: 0.1;`);
         animatePosition(liquid, parseFloat(liquid.getAttribute("position").y), height, 1000);
-        fadeUpdate(statusText, status);
-        fadeUpdate(exampleText, example);
-        fadeUpdate(sifatText, sifat);
+        statusText.setAttribute("text", "value", status);
+        exampleText.setAttribute("text", "value", example);
+        sifatText.setAttribute("text", "value", sifat);
       });
     </script>
   </body>
