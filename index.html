@@ -3,12 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <title>pHFLEX WebAR</title>
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
-    <!-- ✅ A-Frame + AR.js (updated) -->
+    <!-- ✅ A-Frame + AR.js -->
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
 
@@ -17,42 +14,29 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-
+      body { margin: 0; overflow: hidden; }
       .loading {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #000;
-        color: #fff;
-        font-family: sans-serif;
-        z-index: 10;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        background: #000; color: #fff; font-family: sans-serif; z-index: 10;
       }
     </style>
   </head>
 
   <body>
-    <!-- Loading message before AR starts -->
+    <!-- Loading message -->
     <div class="loading" id="loading">Initializing camera… Please wait</div>
 
-    <!-- AR Scene -->
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
       vr-mode-ui="enabled: false"
       renderer="logarithmicDepthBuffer: true;"
     >
-      <!-- Hiro marker -->
+      <!-- Marker -->
       <a-marker preset="hiro">
-        <!-- Cube that changes color based on pH -->
+
+        <!-- Cube -->
         <a-box
           id="liquid"
           position="0 0.1 0"
@@ -62,39 +46,59 @@
           color="#33ff77"
         ></a-box>
 
-        <!-- Live pH Value -->
+        <!-- pH value -->
         <a-entity
           id="phText"
           position="0 0.5 0"
-          text="value: pH: --; align: center; width: 2; color: white"
+          text="value: pH: --; align: center; width: 3; color: white"
         ></a-entity>
 
-        <!-- Educational Text -->
+        <!-- Acid/Alkali status -->
         <a-entity
-          id="noteText"
-          position="0 -0.5 0"
-          text="value: Waiting for data...; align: center; width: 2; color: yellow"
+          id="statusText"
+          position="0 0.7 0"
+          text="value: Status: --; align: center; width: 3; color: yellow"
         ></a-entity>
+
+        <!-- Example in real life -->
+        <a-entity
+          id="exampleText"
+          position="0 0.9 0"
+          text="value: Example: --; align: center; width: 3; color: lightgreen"
+        ></a-entity>
+
+        <!-- Formula -->
+        <a-entity
+          id="formulaText"
+          position="0 1.1 0"
+          text="value: Formula: pH = -log[H⁺]; align: center; width: 3; color: cyan"
+        ></a-entity>
+
+        <!-- Sifat -->
+        <a-entity
+          id="sifatText"
+          position="0 1.3 0"
+          text="value: Sifat: --; align: center; width: 3; color: orange"
+        ></a-entity>
+
       </a-marker>
 
-      <!-- Camera -->
       <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-      // Hide "loading" text once camera is ready
+      // Hide loading once ready
       window.addEventListener("load", () => {
         setTimeout(() => {
           document.getElementById("loading").style.display = "none";
         }, 2500);
       });
 
-      // ✅ Firebase config (your actual project info)
+      // ✅ Firebase config
       const firebaseConfig = {
         apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
         authDomain: "phflex-48cfa.firebaseapp.com",
-        databaseURL:
-          "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app",
+        databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "phflex-48cfa",
         storageBucket: "phflex-48cfa.firebasestorage.app",
         messagingSenderId: "1019182703407",
@@ -102,15 +106,19 @@
         measurementId: "G-80XN89H5P1",
       };
 
-      // ✅ Initialize Firebase
+      // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
       const db = firebase.database();
 
+      // Get AR text references
       const phText = document.querySelector("#phText");
-      const noteText = document.querySelector("#noteText");
+      const statusText = document.querySelector("#statusText");
+      const exampleText = document.querySelector("#exampleText");
+      const formulaText = document.querySelector("#formulaText");
+      const sifatText = document.querySelector("#sifatText");
       const liquid = document.querySelector("#liquid");
 
-      // ✅ Listen for changes from Firebase (path: /pHFLEX/currentValue)
+      // Listen for live data
       db.ref("/pHFLEX/currentValue").on("value", (snap) => {
         const value = snap.val();
         if (value === null) {
@@ -119,28 +127,37 @@
         }
 
         const pH = parseFloat(value);
-        phText.setAttribute("text", "value", "Current pH = " + pH.toFixed(2));
+        phText.setAttribute("text", "value", "pH Value: " + pH.toFixed(2));
 
-        // Change color & educational message
-        let color = "#33ff77"; // default green (neutral)
-        let note = "Neutral solution";
+        let color = "#33ff77";
+        let status = "";
+        let example = "";
+        let sifat = "";
 
         if (pH < 7) {
-          color = "#ff3333"; // red (acidic)
-          note =
-            pH < 3
-              ? "Strong acid ⚗️ — Handle with care!"
-              : "Acidic — can corrode metals.";
+          color = "#ff3333"; // Red
+          status = "Acidic (Asid)";
+          sifat = "Sifat: Menghakis, rasa masam.";
+          if (pH < 3) example = "Example: Asid kuat (asid sulfurik, jus lemon)";
+          else example = "Example: Asid lemah (cuka, minuman berkarbonat)";
         } else if (pH > 7) {
-          color = "#3388ff"; // blue (basic)
-          note =
-            pH > 11
-              ? "Strong base 🧪 — Highly reactive!"
-              : "Basic — mild alkali (soap-like).";
+          color = "#3388ff"; // Blue
+          status = "Basic (Alkali)";
+          sifat = "Sifat: Licin, rasa sabun.";
+          if (pH > 11) example = "Example: Alkali kuat (peluntur, ammonia)";
+          else example = "Example: Alkali lemah (sabun, air sabun)";
+        } else {
+          color = "#33ff77"; // Green
+          status = "Neutral";
+          example = "Example: Air suling";
+          sifat = "Sifat: Tidak berasid / tidak beralkali";
         }
 
+        // Update visuals
         liquid.setAttribute("color", color);
-        noteText.setAttribute("text", "value", note);
+        statusText.setAttribute("text", "value", status);
+        exampleText.setAttribute("text", "value", example);
+        sifatText.setAttribute("text", "value", sifat);
       });
     </script>
   </body>
