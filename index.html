@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>pHFLEX WebAR</title>
+    <title>pHFLEX WebAR (Hiro Marker)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
-    <!-- ✅ A-Frame + AR.js -->
+    <!-- A-Frame + AR.js -->
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
 
-    <!-- ✅ Firebase SDK -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
@@ -24,7 +24,6 @@
   </head>
 
   <body>
-    <!-- Loading message -->
     <div class="loading" id="loading">Initializing camera… Please wait</div>
 
     <a-scene
@@ -33,10 +32,10 @@
       vr-mode-ui="enabled: false"
       renderer="logarithmicDepthBuffer: true;"
     >
-      <!-- ✅ Use your own marker file -->
-      <a-marker type="pattern" url="pHFlex.patt">
+      <!-- ✅ Use the built-in Hiro marker -->
+      <a-marker preset="hiro">
 
-        <!-- ✅ Transparent glowing cube (liquid) -->
+        <!-- Glowing transparent cube -->
         <a-box
           id="liquid"
           position="0 0.1 0"
@@ -44,40 +43,21 @@
           height="0.2"
           width="0.1"
           color="#33ff77"
-          material="opacity: 0.6; transparent: true; emissive: #33ff77; emissiveIntensity: 0.5; metalness: 0.3; roughness: 0.1;"
-          animation__glow="property: material.emissiveIntensity; dir: alternate; dur: 1500; easing: easeInOutSine; loop: true; to: 1"
+          material="opacity:0.6;transparent:true;emissive:#33ff77;emissiveIntensity:0.6;metalness:0.3;roughness:0.1;"
+          animation__glow="property:material.emissiveIntensity;dir:alternate;dur:1500;easing:easeInOutSine;loop:true;to:1"
         ></a-box>
 
-        <!-- ✅ Text labels -->
-        <a-entity
-          id="phText"
-          position="0 0.5 0"
-          text="value: pH Value: Waiting...; align: center; width: 3; color: white"
-        ></a-entity>
-
-        <a-entity
-          id="statusText"
-          position="0 0.7 0"
-          text="value: Status: Waiting for reading...; align: center; width: 3; color: yellow"
-        ></a-entity>
-
-        <a-entity
-          id="exampleText"
-          position="0 0.9 0"
-          text="value: Example: Tap water 💧; align: center; width: 3; color: lightgreen"
-        ></a-entity>
-
-        <a-entity
-          id="formulaText"
-          position="0 1.1 0"
-          text="value: Formula: pH = -log[H⁺]; align: center; width: 3; color: cyan"
-        ></a-entity>
-
-        <a-entity
-          id="sifatText"
-          position="0 1.3 0"
-          text="value: Sifat: Neutral solution; align: center; width: 3; color: orange"
-        ></a-entity>
+        <!-- Labels -->
+        <a-entity id="phText" position="0 0.5 0"
+          text="value:pH Value: Waiting...; align:center; width:3; color:white"></a-entity>
+        <a-entity id="statusText" position="0 0.7 0"
+          text="value:Status: Waiting...; align:center; width:3; color:yellow"></a-entity>
+        <a-entity id="exampleText" position="0 0.9 0"
+          text="value:Example: Tap water 💧; align:center; width:3; color:lightgreen"></a-entity>
+        <a-entity id="formulaText" position="0 1.1 0"
+          text="value:Formula: pH = -log[H⁺]; align:center; width:3; color:cyan"></a-entity>
+        <a-entity id="sifatText" position="0 1.3 0"
+          text="value:Sifat: Neutral solution; align:center; width:3; color:orange"></a-entity>
 
       </a-marker>
 
@@ -85,14 +65,14 @@
     </a-scene>
 
     <script>
-      // Hide loading once camera starts
+      // Hide loading after camera starts
       window.addEventListener("load", () => {
         setTimeout(() => {
           document.getElementById("loading").style.display = "none";
         }, 2500);
       });
 
-      // ✅ Firebase config
+      // Firebase config
       const firebaseConfig = {
         apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
         authDomain: "phflex-48cfa.firebaseapp.com",
@@ -104,18 +84,15 @@
         measurementId: "G-80XN89H5P1",
       };
 
-      // ✅ Initialize Firebase
       firebase.initializeApp(firebaseConfig);
       const db = firebase.database();
 
-      // ✅ Select AR elements
       const phText = document.querySelector("#phText");
       const statusText = document.querySelector("#statusText");
       const exampleText = document.querySelector("#exampleText");
       const sifatText = document.querySelector("#sifatText");
       const liquid = document.querySelector("#liquid");
 
-      // Smooth animation for cube height
       function animatePosition(entity, startY, endY, duration = 1000) {
         let start = null;
         function step(timestamp) {
@@ -128,7 +105,7 @@
         requestAnimationFrame(step);
       }
 
-      // ✅ Listen for live Firebase updates
+      // Listen for live data from Firebase
       db.ref("/pHFlex/currentValue").on("value", (snap) => {
         const value = snap.val();
         if (value === null || value === "") {
@@ -165,9 +142,9 @@
           height = 0.1;
         }
 
-        // ✅ Update visuals
         liquid.setAttribute("color", color);
-        liquid.setAttribute("material", `opacity: 0.6; transparent: true; emissive: ${color}; emissiveIntensity: 0.8; metalness: 0.3; roughness: 0.1;`);
+        liquid.setAttribute("material",
+          `opacity:0.6;transparent:true;emissive:${color};emissiveIntensity:0.8;metalness:0.3;roughness:0.1;`);
         animatePosition(liquid, parseFloat(liquid.getAttribute("position").y), height, 1000);
         statusText.setAttribute("text", "value", status);
         exampleText.setAttribute("text", "value", example);
