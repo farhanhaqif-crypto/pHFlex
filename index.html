@@ -14,24 +14,18 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-
+      body { margin: 0; overflow: hidden; }
       .loading {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #000;
-        color: #fff;
-        font-family: sans-serif;
-        z-index: 10;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        background: #000; color: #fff; font-family: sans-serif; z-index: 10;
+      }
+      .fade {
+        transition: opacity 1s ease-in-out;
+        opacity: 0;
+      }
+      .fade.show {
+        opacity: 1;
       }
     </style>
   </head>
@@ -66,11 +60,11 @@
           text="value: pH Value: Waiting...; align: center; width: 3; color: white"
         ></a-entity>
 
-        <!-- Status -->
+        <!-- Acid/Alkali status -->
         <a-entity
           id="statusText"
           position="0 0.7 0"
-          text="value: Status: Waiting for data...; align: center; width: 3; color: yellow"
+          text="value: Status: Waiting for reading...; align: center; width: 3; color: yellow"
         ></a-entity>
 
         <!-- Example -->
@@ -93,14 +87,14 @@
           position="0 1.3 0"
           text="value: Sifat: Neutral solution; align: center; width: 3; color: orange"
         ></a-entity>
+
       </a-marker>
 
-      <!-- Camera -->
       <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-      // Hide loading once ready
+      // Hide loading after camera starts
       window.addEventListener("load", () => {
         setTimeout(() => {
           document.getElementById("loading").style.display = "none";
@@ -123,34 +117,14 @@
       firebase.initializeApp(firebaseConfig);
       const db = firebase.database();
 
-      // AR elements
+      // Get AR elements
       const phText = document.querySelector("#phText");
       const statusText = document.querySelector("#statusText");
       const exampleText = document.querySelector("#exampleText");
       const sifatText = document.querySelector("#sifatText");
       const liquid = document.querySelector("#liquid");
 
-      // ✅ Smooth fade helper
-      function fadeText(entity, newText) {
-        entity.setAttribute("animation__fadeout", {
-          property: "material.opacity",
-          to: 0,
-          dur: 300,
-          easing: "easeInOutQuad",
-        });
-
-        setTimeout(() => {
-          entity.setAttribute("text", "value", newText);
-          entity.setAttribute("animation__fadein", {
-            property: "material.opacity",
-            to: 1,
-            dur: 400,
-            easing: "easeInOutQuad",
-          });
-        }, 300);
-      }
-
-      // ✅ Smooth movement helper
+      // Smooth cube animation
       function animatePosition(entity, startY, endY, duration = 1000) {
         let start = null;
         function step(timestamp) {
@@ -163,54 +137,64 @@
         requestAnimationFrame(step);
       }
 
-      // ✅ Listen for live Firebase data
-      db.ref("/pHFLEX/currentValue").on("value", (snap) => {
-        const value = snap.val();
+      // Fade text update
+      function fadeUpdate(entity, textValue) {
+        entity.setAttribute("text", "value", textValue);
+        entity.classList.remove("show");
+        void entity.offsetWidth; // trigger reflow
+        entity.classList.add("show");
+      }
 
+      // ✅ Listen for live data (correct Firebase path)
+      db.ref("/pHFlex/currentValue").on("value", (snap) => {
+        const value = snap.val();
         if (value === null) {
-          fadeText(phText, "No pH data found!");
-          fadeText(statusText, "Waiting for sensor...");
+          fadeUpdate(phText, "No pH data found!");
           return;
         }
 
         const pH = parseFloat(value);
-        fadeText(phText, `pH Value: ${pH.toFixed(2)}`);
+        fadeUpdate(phText, "pH Value: " + pH.toFixed(2));
 
-        let color = "#33ff77";
+        let color = "#33ff77"; // Default (neutral)
         let status = "";
         let example = "";
         let sifat = "";
         let height = 0.1;
 
+        // Acidic
         if (pH < 7) {
           color = "#ff3333";
           status = "Acidic (Asid)";
           sifat = "Menghakis, rasa masam.";
-          example = pH < 3 ? "Example: Asid kuat (jus lemon)" : "Example: Asid lemah (cuka)";
+          if (pH < 3) example = "Example: Asid kuat (asid sulfurik, jus lemon)";
+          else example = "Example: Asid lemah (cuka, minuman berkarbonat)";
           height = 0.05 + (pH / 14);
-        } else if (pH > 7) {
+        }
+        // Basic
+        else if (pH > 7) {
           color = "#3388ff";
           status = "Basic (Alkali)";
           sifat = "Licin, rasa sabun.";
-          example = pH > 11 ? "Example: Alkali kuat (peluntur)" : "Example: Alkali lemah (sabun)";
+          if (pH > 11) example = "Example: Alkali kuat (peluntur, ammonia)";
+          else example = "Example: Alkali lemah (sabun, air sabun)";
           height = 0.15 + (pH / 70);
-        } else {
+        }
+        // Neutral
+        else {
           color = "#33ff77";
           status = "Neutral";
-          sifat = "Tidak berasid / tidak beralkali";
           example = "Example: Air suling";
+          sifat = "Tidak berasid / tidak beralkali";
           height = 0.1;
         }
 
-        // ✅ Update visuals with fade animation
-        fadeText(statusText, status);
-        fadeText(exampleText, example);
-        fadeText(sifatText, sifat);
-
-        // ✅ Animate cube movement
-        const currentY = parseFloat(liquid.getAttribute("position").y);
-        animatePosition(liquid, currentY, height, 800);
+        // Update visuals
         liquid.setAttribute("color", color);
+        animatePosition(liquid, parseFloat(liquid.getAttribute("position").y), height, 1000);
+        fadeUpdate(statusText, status);
+        fadeUpdate(exampleText, example);
+        fadeUpdate(sifatText, sifat);
       });
     </script>
   </body>
