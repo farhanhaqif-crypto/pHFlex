@@ -32,10 +32,10 @@
       vr-mode-ui="enabled: false"
       renderer="logarithmicDepthBuffer: true;"
     >
-      <!-- ✅ Use the built-in Hiro marker -->
+      <!-- HIRO MARKER -->
       <a-marker preset="hiro">
 
-        <!-- Glowing transparent cube -->
+        <!-- Liquid box -->
         <a-box
           id="liquid"
           position="0 0.1 0"
@@ -43,19 +43,23 @@
           height="0.2"
           width="0.1"
           color="#33ff77"
-          material="opacity:0.6;transparent:true;emissive:#33ff77;emissiveIntensity:0.6;metalness:0.3;roughness:0.1;"
-          animation__glow="property:material.emissiveIntensity;dir:alternate;dur:1500;easing:easeInOutSine;loop:true;to:1"
+          material="opacity:0.6;transparent:true;emissive:#33ff77;emissiveIntensity:0.6;"
+          animation__glow="property:material.emissiveIntensity;dir:alternate;dur:1500;loop:true;to:1"
         ></a-box>
 
-        <!-- Labels -->
+        <!-- Texts -->
         <a-entity id="phText" position="0 0.5 0"
           text="value:pH Value: Waiting...; align:center; width:3; color:white"></a-entity>
+
         <a-entity id="statusText" position="0 0.7 0"
           text="value:Status: Waiting...; align:center; width:3; color:yellow"></a-entity>
+
         <a-entity id="exampleText" position="0 0.9 0"
           text="value:Example: Tap water 💧; align:center; width:3; color:lightgreen"></a-entity>
+
         <a-entity id="formulaText" position="0 1.1 0"
           text="value:Formula: pH = -log[H⁺]; align:center; width:3; color:cyan"></a-entity>
+
         <a-entity id="sifatText" position="0 1.3 0"
           text="value:Sifat: Neutral solution; align:center; width:3; color:orange"></a-entity>
 
@@ -72,11 +76,11 @@
         }, 2500);
       });
 
-      // Firebase config
+      // Firebase config (FIXED ✔✔✔)
       const firebaseConfig = {
         apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
         authDomain: "phflex-48cfa.firebaseapp.com",
-        databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app",
+        databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app/",
         projectId: "phflex-48cfa",
         storageBucket: "phflex-48cfa.firebasestorage.app",
         messagingSenderId: "1019182703407",
@@ -105,34 +109,27 @@
         requestAnimationFrame(step);
       }
 
-      // Listen for live data from Firebase
+      // LISTEN FOR LIVE pH DATA
       db.ref("/pHFlex/currentValue").on("value", (snap) => {
         const value = snap.val();
-        if (value === null || value === "") {
-          phText.setAttribute("text", "value", "No pH data found!");
-          return;
-        }
+        if (value === null) return;
 
         const pH = parseFloat(value);
         phText.setAttribute("text", "value", "pH Value: " + pH.toFixed(2));
 
-        let color = "#33ff77";
-        let status = "";
-        let example = "";
-        let sifat = "";
-        let height = 0.1;
+        let color, status, example, sifat, height;
 
         if (pH < 7) {
           color = "#ff3333";
           status = "Acidic (Asid)";
-          sifat = "Menghakis, rasa masam.";
-          example = pH < 3 ? "Example: Asid kuat (asid sulfurik, jus lemon)" : "Example: Asid lemah (cuka, minuman berkarbonat)";
+          example = pH < 3 ? "Example: Acid kuat (lemon, sulfuric)" : "Example: Acid lemah (cuka, soda)";
+          sifat = "Rasa masam, menghakis.";
           height = 0.05 + (pH / 14);
         } else if (pH > 7) {
           color = "#3388ff";
           status = "Basic (Alkali)";
+          example = pH > 11 ? "Example: Alkali kuat (clorox, ammonia)" : "Example: Alkali lemah (sabun)";
           sifat = "Licin, rasa sabun.";
-          example = pH > 11 ? "Example: Alkali kuat (peluntur, ammonia)" : "Example: Alkali lemah (sabun, air sabun)";
           height = 0.15 + (pH / 70);
         } else {
           color = "#33ff77";
@@ -144,8 +141,9 @@
 
         liquid.setAttribute("color", color);
         liquid.setAttribute("material",
-          `opacity:0.6;transparent:true;emissive:${color};emissiveIntensity:0.8;metalness:0.3;roughness:0.1;`);
+          `opacity:0.6;transparent:true;emissive:${color};emissiveIntensity:0.8;`);
         animatePosition(liquid, parseFloat(liquid.getAttribute("position").y), height, 1000);
+
         statusText.setAttribute("text", "value", status);
         exampleText.setAttribute("text", "value", example);
         sifatText.setAttribute("text", "value", sifat);
