@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>pHFLEX Dashboard + AR (Hiro)</title>
+  <title>pHFLEX — Dashboard + AR (Optimized)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 
   <!-- A-Frame + AR.js -->
@@ -14,103 +14,94 @@
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
   <style>
-    :root{
-      --bg:#0f1720; --card:#0b1220; --muted:#9aa7b2; --accent:#33ff77;
-      --panel-padding:14px;
+    :root {
+      --bg: #07121a;
+      --panel: rgba(255,255,255,0.03);
+      --muted: #9aa7b2;
+      --accent: #33ff77;
+      --glass: rgba(255,255,255,0.03);
     }
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,#07121a,#071827);color:#eef2f7;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;}
-    .app {
-      display:flex;
-      gap:14px;
-      padding:12px;
-      box-sizing:border-box;
-      height:100vh;
-    }
-    .col {
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-      border-radius:12px;
-      padding:var(--panel-padding);
-      box-shadow: 0 6px 18px rgba(2,6,23,0.6);
-      overflow:auto;
-    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#041016,#071827);font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#e6f3f8}
+    .app { display:flex; gap:12px; padding:12px; box-sizing:border-box; height:100vh; align-items:stretch; }
+    .col { background:var(--panel); border-radius:10px; padding:12px; box-shadow:0 6px 20px rgba(0,0,0,0.6); overflow:auto; }
 
     /* left chart */
-    .left { flex: 1.1; min-width: 260px; display:flex; flex-direction:column; }
-    .chartTitle { font-weight:700; margin-bottom:8px; color:#dfffe6; }
-    #chartCanvas { width:100%; height:380px; background:linear-gradient(180deg,#02131a,#00121a); border-radius:8px; display:block; }
+    .left { flex:1.2; min-width:260px; display:flex; flex-direction:column; }
+    .chartTitle { font-weight:700; color:#dfffe6; margin-bottom:8px; }
+    #chartCanvas { width:100%; height:380px; border-radius:8px; display:block; background:linear-gradient(180deg,#00131a,#001827); }
 
     /* center AR */
-    .center { flex: 0.95; min-width: 320px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; }
-    .arWrapper { width:100%; max-width:640px; aspect-ratio: 3/4; background:#000; border-radius:8px; overflow:hidden; position:relative; }
-    .loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; z-index:50; font-size:16px; background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.2)); }
-    .phPanel { margin-top:10px; text-align:center; }
+    .center { flex:0.95; min-width:320px; display:flex; flex-direction:column; align-items:center; }
+    .arBox { width:100%; max-width:720px; aspect-ratio:3/4; background:#000; border-radius:8px; position:relative; overflow:hidden; }
+    .loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; z-index:20; background:linear-gradient(180deg, rgba(0,0,0,0.5), rgba(0,0,0,0.2)); }
+    .phPanel { margin-top:10px; text-align:center; width:100%; }
     .phValue { font-size:28px; font-weight:700; color:var(--accent); }
-    .category { font-size:18px; color:#ffd97a; margin-top:6px; }
+    .category { font-size:16px; color:#ffd97a; margin-top:6px; }
 
     /* right info */
     .right { flex:0.9; min-width:260px; }
-    .section { margin-bottom:16px; }
+    .section { margin-bottom:14px; }
     .section h3 { margin:0 0 8px 0; color:#cfeef0; }
     .section p { margin:0; color:var(--muted); line-height:1.45; font-size:14px; }
-    .rules { background:rgba(255,255,255,0.02); padding:10px; border-radius:8px; margin-top:8px; font-size:13px; color:#d7eaf0; }
 
-    /* responsive */
-    @media (max-width:1000px){
-      .app{flex-direction:column;}
-      .center{order:2}
-    }
+    /* small responsive */
+    @media (max-width:980px){ .app{flex-direction:column;} .center{order:2} }
+    a { color: var(--accent); }
   </style>
 </head>
 <body>
   <div class="app">
-    <!-- LEFT: expanded chart -->
+    <!-- LEFT: live chart -->
     <div class="col left">
-      <div class="chartTitle">Live pH Chart (last 60 samples)</div>
+      <div class="chartTitle">Live pH Chart — last 60 samples</div>
       <canvas id="chartCanvas"></canvas>
-      <div style="display:flex; gap:12px; margin-top:12px; align-items:center;">
+      <div style="display:flex; gap:10px; align-items:center; margin-top:10px;">
         <div style="font-size:13px;color:var(--muted)">Latest:</div>
         <div id="latestValue" style="font-weight:700;color:var(--accent)">--</div>
-        <div style="margin-left:auto; font-size:12px;color:var(--muted)">Updated: <span id="latestTime">--</span></div>
+        <div style="margin-left:auto;font-size:12px;color:var(--muted)">Updated: <span id="latestTime">--</span></div>
       </div>
     </div>
 
-    <!-- CENTER: AR -->
+    <!-- CENTER: Light AR inside marker only -->
     <div class="col center">
-      <div class="arWrapper" id="arWrap">
-        <div class="loading" id="loading">Initializing camera & AR… Allow camera access</div>
+      <div class="arBox" id="arBox">
+        <div id="loading" class="loading">Initializing camera & AR — allow camera access</div>
 
-        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled:false" renderer="logarithmicDepthBuffer:true;">
-          <a-marker preset="hiro">
+        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled:false" renderer="logarithmicDepthBuffer:true">
+          <!-- MINIMAL: only these inside marker -->
+          <a-marker preset="hiro" id="hiroMarker">
             <a-entity id="container" position="0 0 0">
+              <!-- animated liquid box -->
               <a-box id="liquid" position="0 0.12 0" depth="0.14" width="0.12" height="0.20"
-                material="opacity:0.8;transparent:true;emissive:#33ff77;emissiveIntensity:0.6;metalness:0.2;roughness:0.1"></a-box>
+                     material="opacity:0.9;transparent:true;emissive:#33ff77;emissiveIntensity:0.7;metalness:0.2;roughness:0.1">
+              </a-box>
 
-              <a-entity id="phText" position="0 0.48 0"
-                text="value:pH: --; align:center; width:4; color:#ffffff; baseline:top"></a-entity>
+              <!-- small text labels (short only) -->
+              <a-entity id="arPhText" visible="false" position="0 0.48 0"
+                text="value:pH: -- ; align:center; width:2.6; color:#ffffff"></a-entity>
 
-              <a-entity id="categoryText" position="0 0.72 0"
-                text="value:Category: --; align:center; width:4; color:#ffdd99; baseline:top"></a-entity>
+              <a-entity id="arCatText" visible="false" position="0 0.68 0"
+                text="value:Category: -- ; align:center; width:2.6; color:#ffd97a"></a-entity>
 
-              <a-plane id="chartPlane" position="0 0.95 0" rotation="-90 0 0" width="0.8" height="0.25"
-                material="shader:flat; color:#000000; opacity:0.0"></a-plane>
-
-              <a-entity camera></a-entity>
             </a-entity>
           </a-marker>
+
+          <a-entity camera></a-entity>
         </a-scene>
       </div>
 
+      <!-- summary under AR -->
       <div class="phPanel">
         <div class="phValue" id="phValue">pH: --</div>
         <div class="category" id="categoryLabel">Category: --</div>
       </div>
     </div>
 
-    <!-- RIGHT: University-level educational information -->
+    <!-- RIGHT: educational content (outside marker) -->
     <div class="col right">
       <div class="section">
         <h3>pH Classification (this system)</h3>
-        <div class="rules">
+        <div style="background:var(--glass); padding:10px; border-radius:8px; color:#d7eaf0;">
           <strong>Strong acid</strong>: pH ≤ 3<br/>
           <strong>Mild acid</strong>: 3 &lt; pH &lt; 7<br/>
           <strong>Neutral</strong>: pH = 7<br/>
@@ -122,39 +113,32 @@
       <div class="section">
         <h3>University-level explanation</h3>
         <p>
-          The pH scale is a logarithmic measure of hydrogen ion activity: <em>pH = -log[H⁺]</em>.
-          A unit change corresponds to a 10× change in H⁺ activity. Strong acids dissociate substantially
-          in water (e.g., HCl, H₂SO₄), producing high [H⁺], while weak acids (e.g., acetic acid) only
-          partially dissociate. Similarly for bases: strong bases (e.g., NaOH) fully dissociate, generating OH⁻.
-        </p>
-        <p style="margin-top:10px">
-          In analytical chemistry, pH affects reaction equilibria (Le Chatelier), electrode potentials
-          (Nernst equation), and speciation. When designing sensors, consider ionic strength and temperature
-          since they alter effective activity coefficients and probe response.
+          pH is the negative logarithm of hydrogen ion activity: <em>pH = −log[H⁺]</em>. Each unit is a 10×
+          change in [H⁺]. Strong acids (e.g., HCl) fully dissociate in water while weak acids (e.g., CH₃COOH)
+          only partially dissociate. Temperature and ionic strength influence electrode response.
         </p>
       </div>
 
       <div class="section">
-        <h3>Practical notes for measurements</h3>
+        <h3>Measurement notes</h3>
         <p>
-          - Calibrate probe with at least two standard buffers (pH 4 and pH 7 or pH 7 and pH 10).<br/>
-          - Rinse probe between samples; use fresh buffer solutions.<br/>
-          - Temperature compensation is important: electrode slopes change ~0.0035 V/pH/°C for ideal Nernst behavior.
+          Calibrate with at least two standard buffers (pH 4 & pH 7 or 7 & 10). Rinse the electrode between samples
+          and allow sufficient stabilization time. For high accuracy, include temperature compensation.
         </p>
       </div>
 
       <div class="section">
         <h3>Example calculations</h3>
         <p>
-          For a solution with [H⁺] = 1.0×10⁻³ M, pH = -log(1×10⁻³) = 3.00 (strongly acidic).
-          For a base producing [OH⁻] = 1×10⁻² M, pOH = 2.00 so pH = 14 - 2 = 12.00 (strong base).
+          If [H⁺] = 1×10⁻³ M, pH = 3.00. If [OH⁻] = 1×10⁻² M, pOH = 2 ⇒ pH = 12 (strong base).
         </p>
       </div>
     </div>
   </div>
 
+  <!-- --------- JavaScript: Firebase listener, chart, and AR handlers --------- -->
   <script>
-  /* ------------------ Firebase config: use your DB with trailing slash ------------------ */
+  // ---------- Firebase config (must include trailing slash) ----------
   const firebaseConfig = {
     apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
     authDomain: "phflex-48cfa.firebaseapp.com",
@@ -168,12 +152,12 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  /* ------------------ Chart / history ------------------ */
+  // ---------- Chart (left) setup ----------
   const MAX_POINTS = 60;
   const history = [];
-
   const canvas = document.getElementById('chartCanvas');
   const ctx = canvas.getContext('2d');
+
   function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = canvas.clientWidth * dpr;
@@ -191,9 +175,6 @@
   }
 
   function drawChart() {
-    // clear
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     // background
@@ -201,99 +182,55 @@
     g.addColorStop(0,'#00121a'); g.addColorStop(1,'#001827');
     ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
 
-    // axes
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    // horizontal grid for pH ticks
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    // horizontal lines for pH 0,3,7,11,14 mapped
-    [0,3,7,11,14].forEach(pp=>{
-      const y = mapPHToY(pp,h);
-      ctx.moveTo(40, y); ctx.lineTo(w-8, y);
-    });
-    ctx.stroke();
-
-    // labels
-    ctx.fillStyle = 'rgba(220,240,255,0.5)';
-    ctx.font = '12px sans-serif';
     [14,11,7,3,0].forEach(pp=>{
       const y = mapPHToY(pp,h);
-      ctx.fillText('pH ' + pp, 6, y+4);
+      ctx.beginPath(); ctx.moveTo(36,y); ctx.lineTo(w-8,y); ctx.stroke();
+    });
+
+    // axis labels
+    ctx.fillStyle = 'rgba(220,240,255,0.5)'; ctx.font = '12px sans-serif';
+    [14,11,7,3,0].forEach(pp=>{
+      const y = mapPHToY(pp,h);
+      ctx.fillText('pH ' + pp, 8, y+4);
     });
 
     // draw line
-    if (history.length>0) {
-      ctx.beginPath();
-      ctx.lineWidth = 2.2;
-      ctx.strokeStyle = '#66ff88';
+    if (history.length > 0) {
+      ctx.beginPath(); ctx.lineWidth = 2.2; ctx.strokeStyle = '#66ff88';
       history.forEach((val,i)=>{
-        const x = 40 + (i/(MAX_POINTS-1 || 1)) * (w-48);
+        const x = 36 + (i/(MAX_POINTS-1 || 1)) * (w - 48);
         const y = mapPHToY(val,h);
         if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
       });
       ctx.stroke();
 
-      // fill area
+      // fill
       ctx.lineTo(w-8, mapPHToY(history[history.length-1],h));
       ctx.lineTo(w-8, h-10);
-      ctx.lineTo(40, h-10);
+      ctx.lineTo(36, h-10);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(102,255,136,0.08)';
-      ctx.fill();
+      ctx.fillStyle = 'rgba(102,255,136,0.08)'; ctx.fill();
 
-      // last value dot
-      const lastX = 40 + ((history.length-1)/(MAX_POINTS-1 || 1)) * (w-48);
+      // dot
+      const lastX = 36 + ((history.length-1)/(MAX_POINTS-1 || 1)) * (w - 48);
       const lastY = mapPHToY(history[history.length-1],h);
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(lastX,lastY,4,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(lastX,lastY,4,0,Math.PI*2); ctx.fill();
     } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('No pH data yet (waiting for device)...', 40, canvas.clientHeight/2);
+      ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.font='14px sans-serif';
+      ctx.fillText('Awaiting data from device...', 36, (h/2));
     }
   }
 
-  function mapPHToY(pH, h) {
-    // map pH 0..14 to canvas y (top small margin -> bottom)
+  function mapPHToY(pH,h) {
     const top = 12, bottom = h - 12;
-    const t = 1 - ((pH - 0) / 14); // 0->1 mapping
+    const t = 1 - ( (pH - 0) / 14 );
     return top + t * (bottom - top);
   }
 
-  /* ------------------ AR & HUD elements ------------------ */
-  const phValueEl = document.getElementById('phValue');
-  const categoryLabel = document.getElementById('categoryLabel');
-  const phText = document.getElementById('phText');
-  const categoryText = document.getElementById('categoryText');
-  const chartPlane = document.getElementById('chartPlane');
-  const loading = document.getElementById('loading');
-  const latestValue = document.getElementById('latestValue');
-  const latestTime = document.getElementById('latestTime');
-
-  // small canvas to use as texture for AR plane (mirror of left chart smaller)
-  const smallCanvas = document.createElement('canvas');
-  smallCanvas.width = 512; smallCanvas.height = 128;
-  const sctx = smallCanvas.getContext('2d');
-
-  function drawSmallChart() {
-    const w = smallCanvas.width, h = smallCanvas.height;
-    sctx.clearRect(0,0,w,h);
-    sctx.fillStyle = '#00121a';
-    sctx.fillRect(0,0,w,h);
-    if (history.length>0) {
-      sctx.beginPath(); sctx.strokeStyle = '#66ff88'; sctx.lineWidth=2;
-      history.forEach((val,i)=>{
-        const x = 10 + (i/(MAX_POINTS-1 || 1))*(w-20);
-        const y = 8 + (1 - (val/14))*(h-16);
-        if (i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
-      });
-      sctx.stroke();
-    }
-    // update plane material
-    const dataUrl = smallCanvas.toDataURL();
-    chartPlane.setAttribute('material','src', dataUrl);
-  }
-
-  /* ------------------ Classification ------------------ */
+  // ---------- helper: classification ----------
   function classifyPH(pH) {
     if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
     if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
@@ -302,60 +239,102 @@
     return {label:'Strong base', color:'#3377ff'};
   }
 
-  /* ------------------ Firebase listener ------------------ */
+  // ---------- AR & HUD elements ----------
+  const phValueEl = document.getElementById('phValue');
+  const categoryLabel = document.getElementById('categoryLabel');
+
+  // small canvas for AR plane (not necessary now but kept for future)
+  const smallCanvas = document.createElement('canvas');
+  smallCanvas.width = 512; smallCanvas.height = 128;
+  const sctx = smallCanvas.getContext('2d');
+
+  function drawSmallChart() {
+    const w = smallCanvas.width, h = smallCanvas.height;
+    sctx.clearRect(0,0,w,h);
+    sctx.fillStyle = '#00121a'; sctx.fillRect(0,0,w,h);
+    if (history.length > 0) {
+      sctx.beginPath(); sctx.strokeStyle = '#66ff88'; sctx.lineWidth=2;
+      history.forEach((val,i)=>{
+        const x = 10 + (i/(MAX_POINTS-1 || 1))*(w-20);
+        const y = 8 + (1 - (val/14))*(h-16);
+        if (i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+      });
+      sctx.stroke();
+    }
+  }
+
+  // ---------- marker found/lost handlers ----------
+  const marker = document.querySelector('#hiroMarker');
+  const arPhText = document.getElementById('arPhText');
+  const arCatText = document.getElementById('arCatText');
+  const loading = document.getElementById('loading');
+
+  if (marker) {
+    marker.addEventListener('markerFound', ()=>{
+      console.log('markerFound');
+      if (arPhText) { arPhText.setAttribute('visible', true); arPhText.setAttribute('animation__pop', 'property:scale; to:1.08 1.08 1; dur:220; easing:easeOutQuad; loop:1'); }
+      if (arCatText) { arCatText.setAttribute('visible', true); arCatText.setAttribute('animation__pop2', 'property:scale; to:1.08 1.08 1; dur:220; easing:easeOutQuad; loop:1'); }
+    });
+    marker.addEventListener('markerLost', ()=>{
+      console.log('markerLost');
+      if (arPhText) arPhText.setAttribute('visible', false);
+      if (arCatText) arCatText.setAttribute('visible', false);
+    });
+  } else console.warn('hiroMarker element not found');
+
+  // ---------- Firebase listener (single source of truth) ----------
   db.ref("/pHFlex/currentValue").on("value", (snap)=>{
     const val = snap.val();
     if (val === null || val === undefined) {
       // no data
-      latestValue.innerText = '--';
-      latestTime.innerText = '--';
       return;
     }
     const pH = parseFloat(val);
     if (isNaN(pH)) return;
 
-    // update history and chart
+    // update left chart
     pushHistory(pH);
     drawSmallChart();
 
-    // update HUD & center texts
-    latestValue.innerText = pH.toFixed(2);
-    latestTime.innerText = (new Date()).toLocaleTimeString();
-
+    // update center HUD
     phValueEl.innerText = 'pH: ' + pH.toFixed(2);
-    phText.setAttribute('text','value', 'pH Value: ' + pH.toFixed(2));
-
-    // classification
     const cls = classifyPH(pH);
     categoryLabel.innerText = cls.label;
     categoryLabel.style.color = cls.color;
-    categoryText.setAttribute('text','value','Category: ' + cls.label);
-    categoryText.setAttribute('text','color', cls.color);
 
-    // animate AR liquid: height & color tween
-    // map height roughly 0.05..0.22
+    // update small AR texts (short)
+    if (arPhText) arPhText.setAttribute('text','value','pH: ' + pH.toFixed(2));
+    if (arCatText) { arCatText.setAttribute('text','value', cls.label); arCatText.setAttribute('text','color', cls.color); }
+
+    // update latest labels
+    document.getElementById('latestValue').innerText = pH.toFixed(2);
+    document.getElementById('latestTime').innerText = (new Date()).toLocaleTimeString();
+
+    // animate liquid in AR
     const minH = 0.05, maxH = 0.22;
     const t = Math.max(0,Math.min(14,pH))/14;
     const targetH = minH + t*(maxH - minH);
     const liquidEl = document.getElementById('liquid');
-    // set height directly (A-Frame), adjust position center
     liquidEl.setAttribute('height', targetH);
     liquidEl.setAttribute('position', `0 ${targetH/2} 0`);
-    liquidEl.setAttribute('material', `opacity:0.8;transparent:true;emissive:${cls.color};emissiveIntensity:0.8;`);
+    liquidEl.setAttribute('material', `opacity:0.9;transparent:true;emissive:${cls.color};emissiveIntensity:0.8;`);
 
-    // hide loading once first data arrives
+    // hide loading when data arrives
     if (loading) loading.style.display = 'none';
   });
 
-  // initial empty draw
+  // initial drawing
   drawChart();
   drawSmallChart();
 
-  // hide loading when AR camera is ready
+  // hide loading when AR renderer starts
   document.querySelector('a-scene').addEventListener('renderstart', ()=>{
-    setTimeout(()=>{ if (loading) loading.style.display='none'; }, 800);
+    setTimeout(()=>{ if (loading) loading.style.display = 'none'; }, 600);
   });
 
+  // resize canvas initially
+  window.addEventListener('load', resizeCanvas);
   </script>
 </body>
 </html>
+
