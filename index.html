@@ -1,206 +1,156 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>pHFLEX — Mobile AR (Vertical Friendly)</title>
+  <head>
+    <meta charset="UTF-8" />
+    <title>pHFLEX WebAR (Hiro Marker)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
-<!-- A-Frame + AR.js -->
-<script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
+    <!-- A-Frame + AR.js -->
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
 
-<!-- Firebase (compat) -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
-<style>
-  :root{ --bg:#031218; --panel:rgba(255,255,255,0.03); --accent:#33ff77; --muted:#9aa7b2 }
-  html,body{height:100%;margin:0;background:linear-gradient(#02121a,#041827);font-family:Inter,system-ui,Arial;color:#e8f6f4}
-  .wrap{max-width:900px;margin:0 auto;padding:10px;box-sizing:border-box;}
-  /* Mobile-first: single column */
-  .card{background:var(--panel);border-radius:10px;padding:10px;margin-bottom:10px;box-shadow:0 6px 18px rgba(0,0,0,0.5)}
-  .ar-area{width:100%;border-radius:10px;overflow:hidden;position:relative;background:#000}
-  /* choose a tall square-ish AR view for phone vertical */
-  .ar-area .view{width:100%;height:70vh;max-height:640px;background:#000}
-  .loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:30;background:linear-gradient(180deg,rgba(0,0,0,0.6),transparent)}
-  .status-row{display:flex;align-items:center;gap:12px;margin-top:8px}
-  .phVal{font-size:24px;color:var(--accent);font-weight:700}
-  .cat{font-size:16px;color:#ffd97a}
-  .hint{font-size:13px;color:var(--muted)}
-  /* small fallback banner */
-  .fallback{padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);color:#ffd;display:none}
-  /* tighten things on bigger screens */
-  @media(min-width:900px){
-    .ar-area .view{height:62vh}
-  }
-</style>
-</head>
-<body>
-  <div class="wrap">
+    <style>
+      body { margin: 0; overflow: hidden; }
+      .loading {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        background: #000; color: #fff; font-family: sans-serif; z-index: 10;
+      }
+    </style>
+  </head>
 
-    <!-- AR card (mobile-first on top) -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="font-weight:700">pHFLEX — AR</div>
-        <div class="hint">Point camera at the Hiro marker</div>
-      </div>
+  <body>
+    <div class="loading" id="loading">Initializing camera… Please wait</div>
 
-      <div class="ar-area">
-        <div id="loader" class="loader">Initializing camera… allow access</div>
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false"
+      renderer="logarithmicDepthBuffer: true;"
+    >
+      <!-- ✅ Use the built-in Hiro marker -->
+      <a-marker preset="hiro">
 
-        <!-- A-Frame scene container (the camera/video will appear here) -->
-        <div class="view" id="aframe-view">
-          <a-scene embedded arjs="sourceType: webcam; debugUIEnabled:false;" vr-mode-ui="enabled:false" renderer="logarithmicDepthBuffer:true">
-            <!-- minimal marker content (kept very small so it fits on vertical) -->
-            <a-marker preset="hiro" id="hiroMarker">
-              <a-entity id="container" scale="0.55 0.55 0.55">
-                <a-box id="liquid" position="0 0.08 0" width="0.10" height="0.16" depth="0.10"
-                       material="opacity:0.95;transparent:true;emissive:#33ff77;"></a-box>
+        <!-- Glowing transparent cube -->
+        <a-box
+          id="liquid"
+          position="0 0.1 0"
+          depth="0.1"
+          height="0.2"
+          width="0.1"
+          color="#33ff77"
+          material="opacity:0.6;transparent:true;emissive:#33ff77;emissiveIntensity:0.6;metalness:0.3;roughness:0.1;"
+          animation__glow="property:material.emissiveIntensity;dir:alternate;dur:1500;easing:easeInOutSine;loop:true;to:1"
+        ></a-box>
 
-                <a-entity id="arPhText" visible="false" position="0 0.28 0"
-                          text="value:pH: -- ; align:center; width:1.8; color:white;"></a-entity>
+        <!-- Labels -->
+        <a-entity id="phText" position="0 0.5 0"
+          text="value:pH Value: Waiting...; align:center; width:3; color:white"></a-entity>
+        <a-entity id="statusText" position="0 0.7 0"
+          text="value:Status: Waiting...; align:center; width:3; color:yellow"></a-entity>
+        <a-entity id="exampleText" position="0 0.9 0"
+          text="value:Example: Tap water 💧; align:center; width:3; color:lightgreen"></a-entity>
+        <a-entity id="formulaText" position="0 1.1 0"
+          text="value:Formula: pH = -log[H⁺]; align:center; width:3; color:cyan"></a-entity>
+        <a-entity id="sifatText" position="0 1.3 0"
+          text="value:Sifat: Neutral solution; align:center; width:3; color:orange"></a-entity>
 
-                <a-entity id="arCatText" visible="false" position="0 0.45 0"
-                          text="value:-- ; align:center; width:1.8; color:#ffd97a;"></a-entity>
-              </a-entity>
-            </a-marker>
-            <a-entity camera></a-entity>
-          </a-scene>
-        </div>
-      </div>
+      </a-marker>
 
-      <div class="status-row" style="margin-top:8px">
-        <div class="phVal" id="phValue">pH: --</div>
-        <div class="cat" id="categoryLabel">Category: --</div>
-        <div style="margin-left:auto" class="hint" id="liveHint">Waiting for live data…</div>
-      </div>
+      <a-entity camera></a-entity>
+    </a-scene>
 
-      <div id="fallback" class="fallback" style="margin-top:8px"></div>
-    </div>
+    <script>
+      // Hide loading after camera starts
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          document.getElementById("loading").style.display = "none";
+        }, 2500);
+      });
 
-    <!-- Info card -->
-    <div class="card">
-      <div style="font-weight:700;margin-bottom:6px">University-level notes</div>
-      <p style="color:var(--muted);margin:0 0 8px 0">
-        pH = −log[H⁺]. Calibrate probe with buffers (pH 4,7,10). Temperature & ionic strength affect electrode response.
-      </p>
-      <p style="color:var(--muted);margin:0">Tips: print the Hiro marker on matte paper, good lighting, keep the marker flat and fill most of the frame.</p>
-    </div>
-  </div>
+      // Firebase config
+      const firebaseConfig = {
+        apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
+        authDomain: "phflex-48cfa.firebaseapp.com",
+        databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "phflex-48cfa",
+        storageBucket: "phflex-48cfa.firebasestorage.app",
+        messagingSenderId: "1019182703407",
+        appId: "1:1019182703407:web:6e1c5834f611208c59f7da",
+        measurementId: "G-80XN89H5P1",
+      };
 
-<script>
-/* ---------- Firebase config (must include trailing slash) ---------- */
-const firebaseConfig = {
-  apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
-  authDomain: "phflex-48cfa.firebaseapp.com",
-  databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  projectId: "phflex-48cfa"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
 
-/* ---------- small utilities ---------- */
-function classifyPH(pH){
-  if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
-  if (pH < 7)  return {label:'Mild acid',   color:'#ff8b6b'};
-  if (Math.abs(pH-7) < 0.0001) return {label:'Neutral', color:'#33ff77'};
-  if (pH < 11) return {label:'Mild base',   color:'#86b7ff'};
-  return {label:'Strong base', color:'#3377ff'};
-}
+      const phText = document.querySelector("#phText");
+      const statusText = document.querySelector("#statusText");
+      const exampleText = document.querySelector("#exampleText");
+      const sifatText = document.querySelector("#sifatText");
+      const liquid = document.querySelector("#liquid");
 
-/* ---------- DOM refs ---------- */
-const loader = document.getElementById('loader');
-const fallback = document.getElementById('fallback');
-const phValueEl = document.getElementById('phValue');
-const catEl = document.getElementById('categoryLabel');
+      function animatePosition(entity, startY, endY, duration = 1000) {
+        let start = null;
+        function step(timestamp) {
+          if (!start) start = timestamp;
+          const progress = Math.min((timestamp - start) / duration, 1);
+          const y = startY + (endY - startY) * progress;
+          entity.setAttribute("position", `0 ${y} 0`);
+          if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
 
-const arPhText = document.getElementById('arPhText');
-const arCatText = document.getElementById('arCatText');
-const liquid = document.getElementById('liquid');
-const marker = document.getElementById('hiroMarker');
-const liveHint = document.getElementById('liveHint');
+      // Listen for live data from Firebase
+      db.ref("/pHFlex/currentValue").on("value", (snap) => {
+        const value = snap.val();
+        if (value === null || value === "") {
+          phText.setAttribute("text", "value", "No pH data found!");
+          return;
+        }
 
-/* ---------- marker event logging & popup animation ---------- */
-if (marker) {
-  marker.addEventListener('markerFound', () => {
-    console.log('markerFound');
-    // show small pop + quick scale
-    if (arPhText) { arPhText.setAttribute('visible', true); arPhText.setAttribute('animation__pop', 'property:scale; to:1.2 1.2 1; dur:200; easing:easeOutQuad; loop:1'); }
-    if (arCatText) { arCatText.setAttribute('visible', true); arCatText.setAttribute('animation__pop2', 'property:scale; to:1.2 1.2 1; dur:200; easing:easeOutQuad; loop:1'); }
-    fallback.style.display = 'none';
-  });
+        const pH = parseFloat(value);
+        phText.setAttribute("text", "value", "pH Value: " + pH.toFixed(2));
 
-  marker.addEventListener('markerLost', () => {
-    console.log('markerLost');
-    if (arPhText) arPhText.setAttribute('visible', false);
-    if (arCatText) arCatText.setAttribute('visible', false);
-  });
-} else {
-  console.warn('hiroMarker not found in DOM');
-}
+        let color = "#33ff77";
+        let status = "";
+        let example = "";
+        let sifat = "";
+        let height = 0.1;
 
-/* ---------- detect camera / AR readiness ---------- */
-document.querySelector('a-scene').addEventListener('renderstart', () => {
-  console.log('A-Frame renderstart');
-  // hide loader after camera starts
-  setTimeout(()=> loader.style.display = 'none', 600);
-});
+        if (pH < 7) {
+          color = "#ff3333";
+          status = "Acidic (Asid)";
+          sifat = "Menghakis, rasa masam.";
+          example = pH < 3 ? "Example: Asid kuat (asid sulfurik, jus lemon)" : "Example: Asid lemah (cuka, minuman berkarbonat)";
+          height = 0.05 + (pH / 14);
+        } else if (pH > 7) {
+          color = "#3388ff";
+          status = "Basic (Alkali)";
+          sifat = "Licin, rasa sabun.";
+          example = pH > 11 ? "Example: Alkali kuat (peluntur, ammonia)" : "Example: Alkali lemah (sabun, air sabun)";
+          height = 0.15 + (pH / 70);
+        } else {
+          color = "#33ff77";
+          status = "Neutral";
+          example = "Example: Air suling";
+          sifat = "Tidak berasid / tidak beralkali";
+          height = 0.1;
+        }
 
-/* ---------- Firebase live listener ---------- */
-let lastUpdate = 0;
-db.ref("/pHFlex/currentValue").on('value', snap => {
-  const v = snap.val();
-  if (v === null || v === undefined) {
-    liveHint.innerText = 'No pH data yet';
-    return;
-  }
-  const pH = parseFloat(v);
-  if (isNaN(pH)) return;
-
-  // update UI
-  phValueEl.innerText = 'pH: ' + pH.toFixed(2);
-  const cls = classifyPH(pH);
-  catEl.innerText = cls.label;
-  catEl.style.color = cls.color;
-  liveHint.innerText = 'Live';
-
-  // update AR text (short!)
-  if (arPhText) arPhText.setAttribute('text','value','pH: ' + pH.toFixed(2));
-  if (arCatText) arCatText.setAttribute('text','value', cls.label);
-  if (arCatText) arCatText.setAttribute('text','color', cls.color);
-
-  // adjust liquid height - keep it small so it stays visible on small AR area
-  const minH = 0.05, maxH = 0.18;
-  const t = Math.min(14, Math.max(0, pH)) / 14;
-  const newH = minH + t*(maxH - minH);
-  if (liquid) {
-    liquid.setAttribute('height', newH);
-    liquid.setAttribute('position', `0 ${newH/2} 0`);
-    liquid.setAttribute('material', `opacity:0.95;transparent:true;emissive:${cls.color};emissiveIntensity:0.9`);
-  }
-  lastUpdate = Date.now();
-});
-
-/* ---------- small diagnostics if camera is black or marker never found ---------- */
-setTimeout(()=>{
-  // if there has been no renderstart and the view still black, show hint
-  const noRender = loader && loader.style.display !== 'none';
-  if (noRender) {
-    fallback.style.display = 'block';
-    fallback.innerText = 'Camera did not start. Make sure you allowed camera access and the page is served via HTTPS/localhost. If camera shows black, try switching browser (Chrome on Android works best).';
-  }
-}, 2500);
-
-/* also warn if no markerFound within a while */
-setTimeout(()=>{
-  if (lastUpdate === 0) {
-    // could be device sending 0 or no writes, still show hint
-    if (!fallback.innerText) {
-      fallback.style.display = 'block';
-      fallback.innerText = 'No marker detected yet. Print the Hiro marker on matte paper, good lighting and point camera at it. Console logs show markerFound/markerLost events.';
-    }
-  }
-}, 3000);
-</script>
-</body>
+        liquid.setAttribute("color", color);
+        liquid.setAttribute("material",
+          `opacity:0.6;transparent:true;emissive:${color};emissiveIntensity:0.8;metalness:0.3;roughness:0.1;`);
+        animatePosition(liquid, parseFloat(liquid.getAttribute("position").y), height, 1000);
+        statusText.setAttribute("text", "value", status);
+        exampleText.setAttribute("text", "value", example);
+        sifatText.setAttribute("text", "value", sifat);
+      });
+    </script>
+  </body>
 </html>
+
