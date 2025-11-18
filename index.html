@@ -1,156 +1,206 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>pHFLEX WebAR (Hiro Marker)</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>pHFLEX — AR + Firebase (camera visible)</title>
 
-    <!-- A-Frame + AR.js -->
-    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
+<!-- A-Frame + AR.js -->
+<script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
 
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+<!-- Firebase compat -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
-    <style>
-      body { margin: 0; overflow: hidden; }
-      .loading {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        display: flex; align-items: center; justify-content: center;
-        background: #000; color: #fff; font-family: sans-serif; z-index: 10;
-      }
-    </style>
-  </head>
+<style>
+  html,body{height:100%;margin:0;background:#031218;font-family:Inter,system-ui,Arial;color:#e8f6f4}
+  .wrap{max-width:1100px;margin:0 auto;padding:10px;box-sizing:border-box}
+  .card{background:rgba(255,255,255,0.02);border-radius:10px;padding:10px;margin-bottom:10px}
+  /* AR container: keep it similar to your old layout */
+  .ar-container{position:relative;border-radius:8px;overflow:hidden;background:transparent}
+  /* Make the a-scene fill this box and allow camera to show through */
+  a-scene {
+    width:100%;
+    height:62vh;
+    min-height:360px;
+    background: transparent !important;
+  }
+  /* Remove any default black background the browser might show */
+  .ar-overlay-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:60;background:linear-gradient(180deg,rgba(0,0,0,0.55),transparent)}
+  .statusbar{display:flex;gap:12px;align-items:center;margin-top:8px}
+  .phVal{font-size:20px;color:#33ff77;font-weight:700}
+  .cat{font-size:15px;color:#ffd97a}
+  .hint{color:#9aa7b2;font-size:13px;margin-left:auto}
+  /* small adjustments for mobile */
+  @media (max-width:760px){
+    a-scene{height:70vh}
+    .phVal{font-size:22px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
 
-  <body>
-    <div class="loading" id="loading">Initializing camera… Please wait</div>
+    <div class="card ar-container">
+      <div id="loader" class="ar-overlay-loader">Initializing camera & AR — allow camera access</div>
 
-    <a-scene
-      embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
-      vr-mode-ui="enabled: false"
-      renderer="logarithmicDepthBuffer: true;"
-    >
-      <!-- ✅ Use the built-in Hiro marker -->
-      <a-marker preset="hiro">
+      <!-- A-Frame scene: renderer alpha true so underlying camera video shows -->
+      <a-scene embedded
+               arjs="sourceType: webcam; debugUIEnabled: false;"
+               renderer="logarithmicDepthBuffer: true; alpha: true;"
+               vr-mode-ui="enabled: false"
+               >
 
-        <!-- Glowing transparent cube -->
-        <a-box
-          id="liquid"
-          position="0 0.1 0"
-          depth="0.1"
-          height="0.2"
-          width="0.1"
-          color="#33ff77"
-          material="opacity:0.6;transparent:true;emissive:#33ff77;emissiveIntensity:0.6;metalness:0.3;roughness:0.1;"
-          animation__glow="property:material.emissiveIntensity;dir:alternate;dur:1500;easing:easeInOutSine;loop:true;to:1"
-        ></a-box>
+        <!-- Minimal marker content: small and near the marker (so it pops up visibly) -->
+        <a-marker preset="hiro" id="hiroMarker">
 
-        <!-- Labels -->
-        <a-entity id="phText" position="0 0.5 0"
-          text="value:pH Value: Waiting...; align:center; width:3; color:white"></a-entity>
-        <a-entity id="statusText" position="0 0.7 0"
-          text="value:Status: Waiting...; align:center; width:3; color:yellow"></a-entity>
-        <a-entity id="exampleText" position="0 0.9 0"
-          text="value:Example: Tap water 💧; align:center; width:3; color:lightgreen"></a-entity>
-        <a-entity id="formulaText" position="0 1.1 0"
-          text="value:Formula: pH = -log[H⁺]; align:center; width:3; color:cyan"></a-entity>
-        <a-entity id="sifatText" position="0 1.3 0"
-          text="value:Sifat: Neutral solution; align:center; width:3; color:orange"></a-entity>
+          <!-- Scale/size reduced so it fits well on phone vertically -->
+          <a-entity id="container" scale="0.60 0.60 0.60">
 
-      </a-marker>
+            <!-- small "liquid" box -->
+            <a-box id="liquid"
+                   position="0 0.10 0"
+                   width="0.10" height="0.16" depth="0.10"
+                   material="opacity:0.95;transparent:true;emissive:#33ff77;">
+            </a-box>
 
-      <a-entity camera></a-entity>
-    </a-scene>
+            <!-- short labels (kept concise like your old code) -->
+            <a-entity id="phText" visible="false" position="0 0.36 0"
+                      text="value:pH Value: Waiting...; align:center; width:2.2; color:white"></a-entity>
 
-    <script>
-      // Hide loading after camera starts
-      window.addEventListener("load", () => {
-        setTimeout(() => {
-          document.getElementById("loading").style.display = "none";
-        }, 2500);
-      });
+            <a-entity id="statusText" visible="false" position="0 0.52 0"
+                      text="value:Status: Waiting...; align:center; width:2.2; color:yellow"></a-entity>
 
-      // Firebase config
-      const firebaseConfig = {
-        apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
-        authDomain: "phflex-48cfa.firebaseapp.com",
-        databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "phflex-48cfa",
-        storageBucket: "phflex-48cfa.firebasestorage.app",
-        messagingSenderId: "1019182703407",
-        appId: "1:1019182703407:web:6e1c5834f611208c59f7da",
-        measurementId: "G-80XN89H5P1",
-      };
+            <a-entity id="exampleText" visible="false" position="0 0.66 0"
+                      text="value:Example: Tap water; align:center; width:2.2; color:lightgreen"></a-entity>
 
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.database();
+          </a-entity>
+        </a-marker>
 
-      const phText = document.querySelector("#phText");
-      const statusText = document.querySelector("#statusText");
-      const exampleText = document.querySelector("#exampleText");
-      const sifatText = document.querySelector("#sifatText");
-      const liquid = document.querySelector("#liquid");
+        <a-entity camera></a-entity>
+      </a-scene>
+    </div>
 
-      function animatePosition(entity, startY, endY, duration = 1000) {
-        let start = null;
-        function step(timestamp) {
-          if (!start) start = timestamp;
-          const progress = Math.min((timestamp - start) / duration, 1);
-          const y = startY + (endY - startY) * progress;
-          entity.setAttribute("position", `0 ${y} 0`);
-          if (progress < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-      }
+    <!-- Bottom status -->
+    <div class="statusbar card">
+      <div class="phVal" id="phVal">pH: --</div>
+      <div class="cat" id="catLabel">Category: --</div>
+      <div class="hint" id="liveHint">Waiting for live data</div>
+    </div>
 
-      // Listen for live data from Firebase
-      db.ref("/pHFlex/currentValue").on("value", (snap) => {
-        const value = snap.val();
-        if (value === null || value === "") {
-          phText.setAttribute("text", "value", "No pH data found!");
-          return;
-        }
+    <!-- Right info like your earlier content -->
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:6px">University-level notes</div>
+      <div style="color:#9aa7b2">
+        pH = −log[H⁺]. Calibrate probe with fresh buffers (pH 4, 7, 10). Temperature and ionic strength affect electrode response.
+        Print the Hiro marker on matte paper, keep good lighting and hold the marker mostly flat to the camera.
+      </div>
+    </div>
 
-        const pH = parseFloat(value);
-        phText.setAttribute("text", "value", "pH Value: " + pH.toFixed(2));
+  </div>
 
-        let color = "#33ff77";
-        let status = "";
-        let example = "";
-        let sifat = "";
-        let height = 0.1;
+<script>
+  // ---------------- Firebase config (keep trailing slash OK in DB path usage below) ----------------
+  const firebaseConfig = {
+    apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
+    authDomain: "phflex-48cfa.firebaseapp.com",
+    databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "phflex-48cfa"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-        if (pH < 7) {
-          color = "#ff3333";
-          status = "Acidic (Asid)";
-          sifat = "Menghakis, rasa masam.";
-          example = pH < 3 ? "Example: Asid kuat (asid sulfurik, jus lemon)" : "Example: Asid lemah (cuka, minuman berkarbonat)";
-          height = 0.05 + (pH / 14);
-        } else if (pH > 7) {
-          color = "#3388ff";
-          status = "Basic (Alkali)";
-          sifat = "Licin, rasa sabun.";
-          example = pH > 11 ? "Example: Alkali kuat (peluntur, ammonia)" : "Example: Alkali lemah (sabun, air sabun)";
-          height = 0.15 + (pH / 70);
-        } else {
-          color = "#33ff77";
-          status = "Neutral";
-          example = "Example: Air suling";
-          sifat = "Tidak berasid / tidak beralkali";
-          height = 0.1;
-        }
+  // Elements
+  const loader = document.getElementById('loader');
+  const phText = document.getElementById('phText');
+  const statusText = document.getElementById('statusText');
+  const exampleText = document.getElementById('exampleText');
+  const liquid = document.getElementById('liquid');
 
-        liquid.setAttribute("color", color);
-        liquid.setAttribute("material",
-          `opacity:0.6;transparent:true;emissive:${color};emissiveIntensity:0.8;metalness:0.3;roughness:0.1;`);
-        animatePosition(liquid, parseFloat(liquid.getAttribute("position").y), height, 1000);
-        statusText.setAttribute("text", "value", status);
-        exampleText.setAttribute("text", "value", example);
-        sifatText.setAttribute("text", "value", sifat);
-      });
-    </script>
-  </body>
+  const phVal = document.getElementById('phVal');
+  const catLabel = document.getElementById('catLabel');
+  const liveHint = document.getElementById('liveHint');
+
+  // small classification helper
+  function classifyPH(pH){
+    if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
+    if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
+    if (Math.abs(pH - 7) < 0.0001) return {label:'Neutral', color:'#33ff77'};
+    if (pH > 7 && pH < 11) return {label:'Mild base', color:'#86b7ff'};
+    return {label:'Strong base', color:'#3377ff'};
+  }
+
+  // marker found / lost handlers
+  const marker = document.querySelector('#hiroMarker');
+  if (marker) {
+    marker.addEventListener('markerFound', () => {
+      console.log('markerFound');
+      // show labels
+      phText.setAttribute('visible', true);
+      statusText.setAttribute('visible', true);
+      exampleText.setAttribute('visible', true);
+      // quick pop animation
+      phText.setAttribute('animation__pop','property:scale; to:1.12 1.12 1; dur:220; easing:easeOutQuad; loop:1');
+      statusText.setAttribute('animation__pop2','property:scale; to:1.12 1.12 1; dur:220; easing:easeOutQuad; loop:1');
+    });
+    marker.addEventListener('markerLost', () => {
+      console.log('markerLost');
+      phText.setAttribute('visible', false);
+      statusText.setAttribute('visible', false);
+      exampleText.setAttribute('visible', false);
+    });
+  } else {
+    console.warn('hiroMarker element not found');
+  }
+
+  // hide loader after A-Frame render starts
+  document.querySelector('a-scene').addEventListener('renderstart', () => {
+    console.log('A-Frame renderstart');
+    setTimeout(()=> loader.style.display = 'none', 600);
+  });
+
+  // listen firebase
+  db.ref("/pHFlex/currentValue").on("value", (snap) => {
+    const val = snap.val();
+    if (val === null || val === undefined) {
+      phText.setAttribute('text', 'value', 'No pH data found!');
+      liveHint.innerText = 'No pH data';
+      return;
+    }
+    const pH = parseFloat(val);
+    if (isNaN(pH)) return;
+
+    // update small AR text & HUD
+    phText.setAttribute('text', 'value', 'pH Value: ' + pH.toFixed(2));
+    const cls = classifyPH(pH);
+    statusText.setAttribute('text', 'value', cls.label);
+    exampleText.setAttribute('text', 'value', cls.label === 'Neutral' ? 'Example: Distilled water' : '');
+
+    phVal.innerText = 'pH: ' + pH.toFixed(2);
+    catLabel.innerText = cls.label;
+    catLabel.style.color = cls.color;
+    liveHint.innerText = 'Live';
+
+    // animate liquid color & small vertical move (kept subtle so it fits on marker)
+    const color = cls.color;
+    liquid.setAttribute('material', `opacity:0.95;transparent:true;emissive:${color};emissiveIntensity:0.85;`);
+    // small position tween (manual smooth)
+    const startY = parseFloat(liquid.getAttribute('position').y) || 0.10;
+    const targetY = 0.05 + (Math.max(0, Math.min(14,pH)) / 14) * 0.18;
+    const dur = 700;
+    const t0 = performance.now();
+    const step = (ts)=>{
+      const p = Math.min(1, (ts - t0) / dur);
+      const y = startY + (targetY - startY) * (p<0.5?2*p*p: -1 + (4-2*p)*p); // easeInOut
+      liquid.setAttribute('position', `0 ${y} 0`);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+
+</script>
+</body>
 </html>
+
 
