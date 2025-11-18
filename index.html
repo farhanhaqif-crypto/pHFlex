@@ -1,71 +1,113 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>pHFLEX — AR + Firebase (camera visible)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>pHFLEX — AR + Firebase (camera visible)</title>
 
-<!-- A-Frame + AR.js -->
-<script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
+  <!-- A-Frame + AR.js -->
+  <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
 
-<!-- Firebase compat -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
-<style>
-  html,body{height:100%;margin:0;background:#031218;font-family:Inter,system-ui,Arial;color:#e8f6f4}
-  .wrap{max-width:1100px;margin:0 auto;padding:10px;box-sizing:border-box}
-  .card{background:rgba(255,255,255,0.02);border-radius:10px;padding:10px;margin-bottom:10px}
-  /* AR container: keep it similar to your old layout */
-  .ar-container{position:relative;border-radius:8px;overflow:hidden;background:transparent}
-  /* Make the a-scene fill this box and allow camera to show through */
-  a-scene {
-    width:100%;
-    height:62vh;
-    min-height:360px;
-    background: transparent !important;
-  }
-  /* Remove any default black background the browser might show */
-  .ar-overlay-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:60;background:linear-gradient(180deg,rgba(0,0,0,0.55),transparent)}
-  .statusbar{display:flex;gap:12px;align-items:center;margin-top:8px}
-  .phVal{font-size:20px;color:#33ff77;font-weight:700}
-  .cat{font-size:15px;color:#ffd97a}
-  .hint{color:#9aa7b2;font-size:13px;margin-left:auto}
-  /* small adjustments for mobile */
-  @media (max-width:760px){
-    a-scene{height:70vh}
-    .phVal{font-size:22px}
-  }
-</style>
+  <style>
+    :root{
+      --bg: #031218;
+      --panel: rgba(255,255,255,0.03);
+      --muted: #9aa7b2;
+      --accent: #33ff77;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#041016,#071827);font-family:Inter,system-ui,Arial;color:#e8f6f4}
+    .wrap{max-width:1100px;margin:0 auto;padding:10px;box-sizing:border-box}
+
+    /* top AR card */
+    .ar-card{background:var(--panel);border-radius:10px;padding:10px;margin-bottom:12px;position:relative;overflow:hidden}
+    .ar-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .hint{color:var(--muted);font-size:13px}
+
+    /* Ensure AR container is visually a card but transparent over canvas */
+    .ar-container{position:relative;border-radius:8px;overflow:hidden;background:transparent;}
+
+    /* Make A-Frame canvas & background transparent so camera is visible */
+    a-scene, .a-scene, .a-canvas, canvas {
+      background: transparent !important;
+    }
+
+    /* If A-Frame adds a canvas element, ensure it's above the video but transparent */
+    canvas.a-canvas {
+      position: absolute !important;
+      inset: 0 !important;
+      z-index: 2 !important;
+      pointer-events: none;
+      background: transparent !important;
+    }
+
+    /* Ensure the video element (camera) sits under the canvas but visible */
+    video {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      z-index: 1 !important;
+    }
+
+    /* Small overlay while initializing, transparent to let video show (will hide after renderstart) */
+    .loader {
+      position: absolute;
+      inset: 0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index: 60;
+      color: #fff;
+      background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.08));
+      font-size:16px;
+    }
+
+    /* bottom HUD & right info */
+    .hud{display:flex;gap:12px;align-items:center;margin-top:8px}
+    .phVal{font-size:20px;color:var(--accent);font-weight:700}
+    .cat{font-size:15px;color:#ffd97a}
+    .right-card{background:var(--panel);border-radius:10px;padding:12px}
+
+    @media (max-width:860px){
+      .wrap{padding:8px}
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
 
-    <div class="card ar-container">
-      <div id="loader" class="ar-overlay-loader">Initializing camera & AR — allow camera access</div>
+    <!-- AR area -->
+    <div class="ar-card ar-container">
+      <div class="ar-title">
+        <div style="font-weight:700">pHFLEX — AR Viewer</div>
+        <div class="hint">Point camera at the Hiro marker (print on matte paper)</div>
+      </div>
 
-      <!-- A-Frame scene: renderer alpha true so underlying camera video shows -->
+      <!-- loader overlay; will be hidden on renderstart -->
+      <div id="loader" class="loader">Initializing camera & AR — allow camera access</div>
+
+      <!-- A-Frame scene: alpha:true ensures transparent WebGL canvas -->
       <a-scene embedded
                arjs="sourceType: webcam; debugUIEnabled: false;"
                renderer="logarithmicDepthBuffer: true; alpha: true;"
-               vr-mode-ui="enabled: false"
-               >
+               vr-mode-ui="enabled:false">
 
-        <!-- Minimal marker content: small and near the marker (so it pops up visibly) -->
+        <!-- Minimal marker content (small, close to marker so it pops up nicely) -->
         <a-marker preset="hiro" id="hiroMarker">
-
-          <!-- Scale/size reduced so it fits well on phone vertically -->
           <a-entity id="container" scale="0.60 0.60 0.60">
 
-            <!-- small "liquid" box -->
-            <a-box id="liquid"
-                   position="0 0.10 0"
-                   width="0.10" height="0.16" depth="0.10"
-                   material="opacity:0.95;transparent:true;emissive:#33ff77;">
-            </a-box>
+            <!-- small liquid box -->
+            <a-box id="liquid" position="0 0.10 0" width="0.10" height="0.16" depth="0.10"
+                   material="opacity:0.95;transparent:true;emissive:#33ff77;"></a-box>
 
-            <!-- short labels (kept concise like your old code) -->
+            <!-- short labels -->
             <a-entity id="phText" visible="false" position="0 0.36 0"
                       text="value:pH Value: Waiting...; align:center; width:2.2; color:white"></a-entity>
 
@@ -82,26 +124,25 @@
       </a-scene>
     </div>
 
-    <!-- Bottom status -->
-    <div class="statusbar card">
+    <!-- HUD row -->
+    <div class="ar-card hud" style="align-items:center;gap:18px">
       <div class="phVal" id="phVal">pH: --</div>
       <div class="cat" id="catLabel">Category: --</div>
-      <div class="hint" id="liveHint">Waiting for live data</div>
+      <div style="margin-left:auto" class="hint" id="liveHint">Waiting for live data</div>
     </div>
 
-    <!-- Right info like your earlier content -->
-    <div class="card">
-      <div style="font-weight:700;margin-bottom:6px">University-level notes</div>
-      <div style="color:#9aa7b2">
+    <!-- Right info -->
+    <div class="right-card" style="margin-top:12px">
+      <div style="font-weight:700;margin-bottom:8px">University-level notes</div>
+      <div style="color:var(--muted);line-height:1.45">
         pH = −log[H⁺]. Calibrate probe with fresh buffers (pH 4, 7, 10). Temperature and ionic strength affect electrode response.
-        Print the Hiro marker on matte paper, keep good lighting and hold the marker mostly flat to the camera.
+        For best AR tracking: print the Hiro marker on matte paper, use good lighting, hold marker mostly flat and fill much of the frame.
       </div>
     </div>
-
   </div>
 
-<script>
-  // ---------------- Firebase config (keep trailing slash OK in DB path usage below) ----------------
+  <script>
+  // ---------- Firebase config (db URL ends with slash) ----------
   const firebaseConfig = {
     apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
     authDomain: "phflex-48cfa.firebaseapp.com",
@@ -111,7 +152,7 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // Elements
+  // DOM refs
   const loader = document.getElementById('loader');
   const phText = document.getElementById('phText');
   const statusText = document.getElementById('statusText');
@@ -122,7 +163,7 @@
   const catLabel = document.getElementById('catLabel');
   const liveHint = document.getElementById('liveHint');
 
-  // small classification helper
+  // classification helper
   function classifyPH(pH){
     if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
     if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
@@ -131,16 +172,14 @@
     return {label:'Strong base', color:'#3377ff'};
   }
 
-  // marker found / lost handlers
+  // marker event handlers
   const marker = document.querySelector('#hiroMarker');
   if (marker) {
     marker.addEventListener('markerFound', () => {
       console.log('markerFound');
-      // show labels
       phText.setAttribute('visible', true);
       statusText.setAttribute('visible', true);
       exampleText.setAttribute('visible', true);
-      // quick pop animation
       phText.setAttribute('animation__pop','property:scale; to:1.12 1.12 1; dur:220; easing:easeOutQuad; loop:1');
       statusText.setAttribute('animation__pop2','property:scale; to:1.12 1.12 1; dur:220; easing:easeOutQuad; loop:1');
     });
@@ -151,16 +190,44 @@
       exampleText.setAttribute('visible', false);
     });
   } else {
-    console.warn('hiroMarker element not found');
+    console.warn('hiroMarker not found');
   }
 
-  // hide loader after A-Frame render starts
+  // ensure canvas & video styling when the scene starts
   document.querySelector('a-scene').addEventListener('renderstart', () => {
     console.log('A-Frame renderstart');
-    setTimeout(()=> loader.style.display = 'none', 600);
+    // hide loader
+    if (loader) loader.style.display = 'none';
+
+    // make sure canvas is transparent and above video
+    const canv = document.querySelector('canvas.a-canvas') || document.querySelector('canvas');
+    if (canv) {
+      canv.style.background = 'transparent';
+      canv.style.zIndex = 2;
+      canv.style.position = 'absolute';
+      canv.style.top = '0';
+      canv.style.left = '0';
+      canv.style.width = '100%';
+      canv.style.height = '100%';
+    }
+
+    // style the auto-created <video> element so it sits under the canvas
+    const vid = document.querySelector('video');
+    if (vid) {
+      vid.style.position = 'absolute';
+      vid.style.top = '0';
+      vid.style.left = '0';
+      vid.style.width = '100%';
+      vid.style.height = '100%';
+      vid.style.objectFit = 'cover';
+      vid.style.zIndex = 1;
+      console.log('video element ready (w/h):', vid.videoWidth, vid.videoHeight);
+    } else {
+      console.warn('video element not found yet');
+    }
   });
 
-  // listen firebase
+  // listen to Firebase pH value
   db.ref("/pHFlex/currentValue").on("value", (snap) => {
     const val = snap.val();
     if (val === null || val === undefined) {
@@ -171,7 +238,7 @@
     const pH = parseFloat(val);
     if (isNaN(pH)) return;
 
-    // update small AR text & HUD
+    // AR text + HUD update
     phText.setAttribute('text', 'value', 'pH Value: ' + pH.toFixed(2));
     const cls = classifyPH(pH);
     statusText.setAttribute('text', 'value', cls.label);
@@ -182,25 +249,53 @@
     catLabel.style.color = cls.color;
     liveHint.innerText = 'Live';
 
-    // animate liquid color & small vertical move (kept subtle so it fits on marker)
+    // animate liquid small vertical movement + color change
     const color = cls.color;
     liquid.setAttribute('material', `opacity:0.95;transparent:true;emissive:${color};emissiveIntensity:0.85;`);
-    // small position tween (manual smooth)
+
+    // smoothly change vertical position
     const startY = parseFloat(liquid.getAttribute('position').y) || 0.10;
-    const targetY = 0.05 + (Math.max(0, Math.min(14,pH)) / 14) * 0.18;
-    const dur = 700;
+    const targetY = 0.05 + (Math.max(0, Math.min(14, pH)) / 14) * 0.18;
+    const dur = 600;
     const t0 = performance.now();
-    const step = (ts)=>{
-      const p = Math.min(1, (ts - t0) / dur);
-      const y = startY + (targetY - startY) * (p<0.5?2*p*p: -1 + (4-2*p)*p); // easeInOut
+    (function step(ts){
+      const p = Math.min(1,(ts - t0)/dur);
+      const eased = p<0.5 ? 2*p*p : -1 + (4 - 2*p)*p; // easeInOut
+      const y = startY + (targetY - startY)*eased;
       liquid.setAttribute('position', `0 ${y} 0`);
       if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
+    })(t0);
   });
 
-</script>
+  // small watchdog: if video track ends or becomes unusable, try one soft reload to recover
+  (function cameraWatchdog(){
+    let reloaded = false;
+    function findVideo(){ return document.querySelector('video'); }
+    function inspect(){
+      const v = findVideo();
+      if (!v) return;
+      // if video has zero size or paused unexpectedly, try reload once
+      if ((v.videoWidth === 0 || v.readyState < 2 || v.paused) && !reloaded) {
+        console.warn('[watchdog] video looks dead — reloading once to recover camera');
+        try { const s = v.srcObject; if (s && s.getTracks) s.getTracks().forEach(t=>t.stop()); } catch(e){/*ignore*/}
+        reloaded = true;
+        setTimeout(()=> location.reload(), 600);
+      }
+      // attach track ended listener
+      const s = v.srcObject;
+      if (s && s.getVideoTracks) {
+        s.getVideoTracks().forEach(tr => {
+          if (!tr.__watchdog) {
+            tr.__watchdog = true;
+            tr.addEventListener('ended', ()=> { console.warn('[watchdog] video track ended — reloading'); if (!reloaded){ reloaded = true; setTimeout(()=>location.reload(),400); } });
+          }
+        });
+      }
+    }
+    const id = setInterval(inspect, 900);
+    setTimeout(()=> { clearInterval(id); console.log('[watchdog] stopped periodic checks'); }, 30000);
+  })();
+
+  </script>
 </body>
 </html>
-
-
