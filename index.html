@@ -2,201 +2,172 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>pHFLEX — Dashboard + AR (Optimized)</title>
+  <title>pHFLEX — AR Viewer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 
   <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
 
-  <!-- Firebase (compat) -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
   <style>
     :root {
-      --bg: #07121a;
       --panel: rgba(255,255,255,0.03);
       --muted: #9aa7b2;
       --accent: #33ff77;
-      --glass: rgba(255,255,255,0.03);
     }
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,#041016,#071827);font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#e6f3f8}
-    .app { display:flex; gap:12px; padding:12px; box-sizing:border-box; height:100vh; align-items:stretch; }
-    .col { background:var(--panel); border-radius:10px; padding:12px; box-shadow:0 6px 20px rgba(0,0,0,0.6); overflow:auto; }
 
-    /* left chart */
-    .left { flex:1.2; min-width:260px; display:flex; flex-direction:column; }
-    .chartTitle { font-weight:700; color:#dfffe6; margin-bottom:8px; }
-    #chartCanvas { width:100%; height:380px; border-radius:8px; display:block; background:linear-gradient(180deg,#00131a,#001827); }
+    html,body {
+      height:100%;
+      margin:0;
+      background:linear-gradient(180deg,#041016,#071827);
+      font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+      color:#e6f3f8;
+    }
 
-    /* center AR */
-    .center { flex:0.95; min-width:320px; display:flex; flex-direction:column; align-items:center; }
-    .arBox { width:100%; max-width:720px; aspect-ratio:3/4; background:#000; border-radius:8px; position:relative; overflow:hidden; }
-    .loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; z-index:20; background:linear-gradient(180deg, rgba(0,0,0,0.5), rgba(0,0,0,0.2)); }
-    .phPanel { margin-top:10px; text-align:center; width:100%; }
-    .phValue { font-size:28px; font-weight:700; color:var(--accent); }
-    .category { font-size:16px; color:#ffd97a; margin-top:6px; }
+    .app {
+      display:flex;
+      gap:14px;
+      padding:14px;
+      box-sizing:border-box;
+      height:100vh;
+    }
 
-    /* right info */
-    .right { flex:0.9; min-width:260px; }
-    .section { margin-bottom:14px; }
-    .section h3 { margin:0 0 8px 0; color:#cfeef0; }
-    .section p { margin:0; color:var(--muted); line-height:1.45; font-size:14px; }
+    .col {
+      background:var(--panel);
+      border-radius:10px;
+      padding:14px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.5);
+      overflow:auto;
+    }
 
-    /* small responsive */
-    @media (max-width:980px){ .app{flex-direction:column;} .center{order:2} }
-    a { color: var(--accent); }
+    .center {
+      flex:1.2;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      min-width:300px;
+    }
+
+    .right {
+      flex:0.9;
+      min-width:260px;
+    }
+
+    .arBox {
+      width:100%;
+      max-width:700px;
+      aspect-ratio: 3/4;
+      background:#000;
+      border-radius:10px;
+      overflow:hidden;
+      position:relative;
+    }
+
+    .loading {
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+      color:white;
+      background:rgba(0,0,0,0.6);
+      z-index:20;
+    }
+
+    .phPanel {
+      margin-top:14px;
+      text-align:center;
+    }
+
+    .phValue {
+      font-size:30px;
+      font-weight:700;
+      color:var(--accent);
+    }
+
+    .category {
+      font-size:18px;
+      margin-top:6px;
+      color:#ffd97a;
+    }
+
+    .section {
+      margin-bottom:16px;
+    }
+
+    .section h3 {
+      margin:0 0 8px 0;
+      color:#cfeef0;
+    }
+
+    .section p {
+      margin:0;
+      font-size:14px;
+      color:var(--muted);
+      line-height:1.48;
+    }
+
+    @media (max-width:900px){
+      .app {
+        flex-direction:column;
+      }
+    }
   </style>
 </head>
+
 <body>
   <div class="app">
-    <!-- LEFT: live chart -->
-    <div class="col left">
-      <div class="chartTitle">Live pH Chart — last 60 samples</div>
-      <canvas id="chartCanvas"></canvas>
-      <div style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-        <div style="font-size:13px;color:var(--muted)">Latest:</div>
-        <div id="latestValue" style="font-weight:700;color:var(--accent)">--</div>
-        <div style="margin-left:auto;font-size:12px;color:var(--muted)">Updated: <span id="latestTime">--</span></div>
-      </div>
-    </div>
 
-    <!-- CENTER: Light AR inside marker only -->
+    <!-- CENTER: AR Section -->
     <div class="col center">
-      <div class="arBox" id="arBox">
-        <div id="loading" class="loading">Initializing camera & AR — allow camera access</div>
+      <div class="arBox">
+        <div id="loading" class="loading">Initializing camera… Allow access</div>
 
-        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled:false" renderer="logarithmicDepthBuffer:true">
-          <!-- Only simple items inside marker -->
+        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled:false;" vr-mode-ui="enabled:false">
+          
           <a-marker preset="hiro" id="hiroMarker">
-            <a-entity id="container" position="0 0 0">
-              
+
+            <a-entity id="container">
+
               <!-- Liquid box -->
-              <a-box id="liquid" position="0 0.12 0" depth="0.14" width="0.12" height="0.20"
-                material="opacity:0.9;transparent:true;emissive:#33ff77;emissiveIntensity:0.7;metalness:0.2;roughness:0.1">
+              <a-box id="liquid" position="0 0.12 0"
+                     width="0.12" height="0.20" depth="0.14"
+                     material="opacity:0.9;transparent:true;emissive:#33ff77;emissiveIntensity:0.7;">
               </a-box>
 
-              <!-- pH text -->
+              <!-- pH Label -->
               <a-entity id="arPhText" visible="false" position="0 0.48 0"
-                text="value:pH: -- ; align:center; width:2.6; color:#ffffff"></a-entity>
+                        text="value:pH: -- ; align:center; width:3; color:white;"></a-entity>
 
-              <!-- Category text -->
-              <a-entity id="arCatText" visible="false" position="0 0.68 0"
-                text="value:-- ; align:center; width:2.6; color:#ffd97a"></a-entity>
+              <!-- Category Label -->
+              <a-entity id="arCatText" visible="false" position="0 0.70 0"
+                        text="value:-- ; align:center; width:3; color:#ffd97a;"></a-entity>
 
             </a-entity>
+
           </a-marker>
 
           <a-entity camera></a-entity>
         </a-scene>
       </div>
 
-      <!-- Summary below AR -->
+      <!-- Summary under AR -->
       <div class="phPanel">
         <div class="phValue" id="phValue">pH: --</div>
         <div class="category" id="categoryLabel">Category: --</div>
       </div>
     </div>
 
-    <!-- RIGHT: educational content (clean) -->
+    <!-- RIGHT: Educational Content -->
     <div class="col right">
-
       <div class="section">
-        <h3>University-level explanation</h3>
-        <p>
-          pH represents the negative logarithm of hydrogen ion activity: <em>pH = −log[H⁺]</em>. Strong acids
-          dissociate nearly completely, while weak acids only partially do so. Temperature, ionic strength,
-          and electrode calibration directly influence the accuracy of pH measurements.
-        </p>
-      </div>
+        <h3>Univers
 
-      <div class="section">
-        <h3>Measurement notes</h3>
-        <p>
-          • Calibrate using standard buffer solutions at pH 4, 7, and 10.<br/>
-          • Rinse the electrode between measurements to avoid contamination.<br/>
-          • Ensure stable temperature or compensate for variations.<br/>
-        </p>
-      </div>
-
-      <div class="section">
-        <h3>Example calculations</h3>
-        <p>
-          For [H⁺] = 1×10⁻³ M → pH = 3 (acidic).<br/>
-          For [OH⁻] = 1×10⁻² M → pOH = 2 → pH = 12 (basic).<br/>
-        </p>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- JavaScript: Firebase + chart + AR -->
-  <script>
-  // Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
-    authDomain: "phflex-48cfa.firebaseapp.com",
-    databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app/",
-    projectId: "phflex-48cfa",
-    storageBucket: "phflex-48cfa.firebasestorage.app",
-    messagingSenderId: "1019182703407",
-    appId: "1:1019182703407:web:6e1c5834f611208c59f7da",
-    measurementId: "G-80XN89H5P1"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  /* ---------- Classification for main UI ---------- */
-  function classifyPH(pH) {
-    if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
-    if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
-    if (Math.abs(pH - 7) < 0.0001) return {label:'Neutral', color:'#33ff77'};
-    if (pH > 7 && pH < 11) return {label:'Mild base', color:'#86b7ff'};
-    return {label:'Strong base', color:'#3377ff'};
-  }
-
-  /* ---------- Real-time chart ---------- */
-  const MAX_POINTS = 60;
-  const history = [];
-  const canvas = document.getElementById('chartCanvas');
-  const ctx = canvas.getContext('2d');
-
-  function resizeCanvas() {
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = canvas.clientWidth * dpr;
-    canvas.height = Math.max(220, canvas.clientHeight) * dpr;
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    drawChart();
-  }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
-
-  function pushHistory(v) {
-    history.push(v);
-    if (history.length > MAX_POINTS) history.shift();
-    drawChart();
-  }
-
-  function drawChart() {
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    const g = ctx.createLinearGradient(0,0,w,h);
-    g.addColorStop(0,'#00121a'); 
-    g.addColorStop(1,'#001827');
-    ctx.fillStyle = g; 
-    ctx.fillRect(0,0,w,h);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
-    [14,11,7,3,0].forEach(pp=>{
-      const y = mapPHToY(pp,h);
-      ctx.beginPath(); ctx.moveTo(36,y); ctx.lineTo(w-8,y); ctx.stroke();
-    });
-
-    ctx.fillStyle = 'rgba(220,240,255,0.5)'; 
-    ctx.font = '12px sans-serif';
-    [14,11,7,3,0].forEach(pp=>{
 
 
 
