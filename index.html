@@ -68,20 +68,22 @@
         <div id="loading" class="loading">Initializing camera & AR — allow camera access</div>
 
         <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled:false" renderer="logarithmicDepthBuffer:true">
-          <!-- MINIMAL: only these inside marker -->
+          <!-- Only simple items inside marker -->
           <a-marker preset="hiro" id="hiroMarker">
             <a-entity id="container" position="0 0 0">
-              <!-- animated liquid box -->
+              
+              <!-- Liquid box -->
               <a-box id="liquid" position="0 0.12 0" depth="0.14" width="0.12" height="0.20"
-                     material="opacity:0.9;transparent:true;emissive:#33ff77;emissiveIntensity:0.7;metalness:0.2;roughness:0.1">
+                material="opacity:0.9;transparent:true;emissive:#33ff77;emissiveIntensity:0.7;metalness:0.2;roughness:0.1">
               </a-box>
 
-              <!-- small text labels (short only) -->
+              <!-- pH text -->
               <a-entity id="arPhText" visible="false" position="0 0.48 0"
                 text="value:pH: -- ; align:center; width:2.6; color:#ffffff"></a-entity>
 
+              <!-- Category text -->
               <a-entity id="arCatText" visible="false" position="0 0.68 0"
-                text="value:Category: -- ; align:center; width:2.6; color:#ffd97a"></a-entity>
+                text="value:-- ; align:center; width:2.6; color:#ffd97a"></a-entity>
 
             </a-entity>
           </a-marker>
@@ -90,55 +92,48 @@
         </a-scene>
       </div>
 
-      <!-- summary under AR -->
+      <!-- Summary below AR -->
       <div class="phPanel">
         <div class="phValue" id="phValue">pH: --</div>
         <div class="category" id="categoryLabel">Category: --</div>
       </div>
     </div>
 
-    <!-- RIGHT: educational content (outside marker) -->
+    <!-- RIGHT: educational content (clean) -->
     <div class="col right">
-      <div class="section">
-        <h3>pH Classification (this system)</h3>
-        <div style="background:var(--glass); padding:10px; border-radius:8px; color:#d7eaf0;">
-          <strong>Strong acid</strong>: pH ≤ 3<br/>
-          <strong>Mild acid</strong>: 3 &lt; pH &lt; 7<br/>
-          <strong>Neutral</strong>: pH = 7<br/>
-          <strong>Mild base</strong>: 7 &lt; pH &lt; 11<br/>
-          <strong>Strong base</strong>: pH ≥ 11
-        </div>
-      </div>
 
       <div class="section">
         <h3>University-level explanation</h3>
         <p>
-          pH is the negative logarithm of hydrogen ion activity: <em>pH = −log[H⁺]</em>. Each unit is a 10×
-          change in [H⁺]. Strong acids (e.g., HCl) fully dissociate in water while weak acids (e.g., CH₃COOH)
-          only partially dissociate. Temperature and ionic strength influence electrode response.
+          pH represents the negative logarithm of hydrogen ion activity: <em>pH = −log[H⁺]</em>. Strong acids
+          dissociate nearly completely, while weak acids only partially do so. Temperature, ionic strength,
+          and electrode calibration directly influence the accuracy of pH measurements.
         </p>
       </div>
 
       <div class="section">
         <h3>Measurement notes</h3>
         <p>
-          Calibrate with at least two standard buffers (pH 4 & pH 7 or 7 & 10). Rinse the electrode between samples
-          and allow sufficient stabilization time. For high accuracy, include temperature compensation.
+          • Calibrate using standard buffer solutions at pH 4, 7, and 10.<br/>
+          • Rinse the electrode between measurements to avoid contamination.<br/>
+          • Ensure stable temperature or compensate for variations.<br/>
         </p>
       </div>
 
       <div class="section">
         <h3>Example calculations</h3>
         <p>
-          If [H⁺] = 1×10⁻³ M, pH = 3.00. If [OH⁻] = 1×10⁻² M, pOH = 2 ⇒ pH = 12 (strong base).
+          For [H⁺] = 1×10⁻³ M → pH = 3 (acidic).<br/>
+          For [OH⁻] = 1×10⁻² M → pOH = 2 → pH = 12 (basic).<br/>
         </p>
       </div>
+
     </div>
   </div>
 
-  <!-- --------- JavaScript: Firebase listener, chart, and AR handlers --------- -->
+  <!-- JavaScript: Firebase + chart + AR -->
   <script>
-  // ---------- Firebase config (must include trailing slash) ----------
+  // Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
     authDomain: "phflex-48cfa.firebaseapp.com",
@@ -152,7 +147,16 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // ---------- Chart (left) setup ----------
+  /* ---------- Classification for main UI ---------- */
+  function classifyPH(pH) {
+    if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
+    if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
+    if (Math.abs(pH - 7) < 0.0001) return {label:'Neutral', color:'#33ff77'};
+    if (pH > 7 && pH < 11) return {label:'Mild base', color:'#86b7ff'};
+    return {label:'Strong base', color:'#3377ff'};
+  }
+
+  /* ---------- Real-time chart ---------- */
   const MAX_POINTS = 60;
   const history = [];
   const canvas = document.getElementById('chartCanvas');
@@ -177,12 +181,12 @@
   function drawChart() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    // background
     const g = ctx.createLinearGradient(0,0,w,h);
-    g.addColorStop(0,'#00121a'); g.addColorStop(1,'#001827');
-    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    g.addColorStop(0,'#00121a'); 
+    g.addColorStop(1,'#001827');
+    ctx.fillStyle = g; 
+    ctx.fillRect(0,0,w,h);
 
-    // horizontal grid for pH ticks
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 1;
     [14,11,7,3,0].forEach(pp=>{
@@ -190,152 +194,9 @@
       ctx.beginPath(); ctx.moveTo(36,y); ctx.lineTo(w-8,y); ctx.stroke();
     });
 
-    // axis labels
-    ctx.fillStyle = 'rgba(220,240,255,0.5)'; ctx.font = '12px sans-serif';
+    ctx.fillStyle = 'rgba(220,240,255,0.5)'; 
+    ctx.font = '12px sans-serif';
     [14,11,7,3,0].forEach(pp=>{
-      const y = mapPHToY(pp,h);
-      ctx.fillText('pH ' + pp, 8, y+4);
-    });
 
-    // draw line
-    if (history.length > 0) {
-      ctx.beginPath(); ctx.lineWidth = 2.2; ctx.strokeStyle = '#66ff88';
-      history.forEach((val,i)=>{
-        const x = 36 + (i/(MAX_POINTS-1 || 1)) * (w - 48);
-        const y = mapPHToY(val,h);
-        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      });
-      ctx.stroke();
-
-      // fill
-      ctx.lineTo(w-8, mapPHToY(history[history.length-1],h));
-      ctx.lineTo(w-8, h-10);
-      ctx.lineTo(36, h-10);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(102,255,136,0.08)'; ctx.fill();
-
-      // dot
-      const lastX = 36 + ((history.length-1)/(MAX_POINTS-1 || 1)) * (w - 48);
-      const lastY = mapPHToY(history[history.length-1],h);
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(lastX,lastY,4,0,Math.PI*2); ctx.fill();
-    } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.font='14px sans-serif';
-      ctx.fillText('Awaiting data from device...', 36, (h/2));
-    }
-  }
-
-  function mapPHToY(pH,h) {
-    const top = 12, bottom = h - 12;
-    const t = 1 - ( (pH - 0) / 14 );
-    return top + t * (bottom - top);
-  }
-
-  // ---------- helper: classification ----------
-  function classifyPH(pH) {
-    if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
-    if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
-    if (Math.abs(pH - 7) < 0.0001) return {label:'Neutral', color:'#33ff77'};
-    if (pH > 7 && pH < 11) return {label:'Mild base', color:'#86b7ff'};
-    return {label:'Strong base', color:'#3377ff'};
-  }
-
-  // ---------- AR & HUD elements ----------
-  const phValueEl = document.getElementById('phValue');
-  const categoryLabel = document.getElementById('categoryLabel');
-
-  // small canvas for AR plane (not necessary now but kept for future)
-  const smallCanvas = document.createElement('canvas');
-  smallCanvas.width = 512; smallCanvas.height = 128;
-  const sctx = smallCanvas.getContext('2d');
-
-  function drawSmallChart() {
-    const w = smallCanvas.width, h = smallCanvas.height;
-    sctx.clearRect(0,0,w,h);
-    sctx.fillStyle = '#00121a'; sctx.fillRect(0,0,w,h);
-    if (history.length > 0) {
-      sctx.beginPath(); sctx.strokeStyle = '#66ff88'; sctx.lineWidth=2;
-      history.forEach((val,i)=>{
-        const x = 10 + (i/(MAX_POINTS-1 || 1))*(w-20);
-        const y = 8 + (1 - (val/14))*(h-16);
-        if (i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
-      });
-      sctx.stroke();
-    }
-  }
-
-  // ---------- marker found/lost handlers ----------
-  const marker = document.querySelector('#hiroMarker');
-  const arPhText = document.getElementById('arPhText');
-  const arCatText = document.getElementById('arCatText');
-  const loading = document.getElementById('loading');
-
-  if (marker) {
-    marker.addEventListener('markerFound', ()=>{
-      console.log('markerFound');
-      if (arPhText) { arPhText.setAttribute('visible', true); arPhText.setAttribute('animation__pop', 'property:scale; to:1.08 1.08 1; dur:220; easing:easeOutQuad; loop:1'); }
-      if (arCatText) { arCatText.setAttribute('visible', true); arCatText.setAttribute('animation__pop2', 'property:scale; to:1.08 1.08 1; dur:220; easing:easeOutQuad; loop:1'); }
-    });
-    marker.addEventListener('markerLost', ()=>{
-      console.log('markerLost');
-      if (arPhText) arPhText.setAttribute('visible', false);
-      if (arCatText) arCatText.setAttribute('visible', false);
-    });
-  } else console.warn('hiroMarker element not found');
-
-  // ---------- Firebase listener (single source of truth) ----------
-  db.ref("/pHFlex/currentValue").on("value", (snap)=>{
-    const val = snap.val();
-    if (val === null || val === undefined) {
-      // no data
-      return;
-    }
-    const pH = parseFloat(val);
-    if (isNaN(pH)) return;
-
-    // update left chart
-    pushHistory(pH);
-    drawSmallChart();
-
-    // update center HUD
-    phValueEl.innerText = 'pH: ' + pH.toFixed(2);
-    const cls = classifyPH(pH);
-    categoryLabel.innerText = cls.label;
-    categoryLabel.style.color = cls.color;
-
-    // update small AR texts (short)
-    if (arPhText) arPhText.setAttribute('text','value','pH: ' + pH.toFixed(2));
-    if (arCatText) { arCatText.setAttribute('text','value', cls.label); arCatText.setAttribute('text','color', cls.color); }
-
-    // update latest labels
-    document.getElementById('latestValue').innerText = pH.toFixed(2);
-    document.getElementById('latestTime').innerText = (new Date()).toLocaleTimeString();
-
-    // animate liquid in AR
-    const minH = 0.05, maxH = 0.22;
-    const t = Math.max(0,Math.min(14,pH))/14;
-    const targetH = minH + t*(maxH - minH);
-    const liquidEl = document.getElementById('liquid');
-    liquidEl.setAttribute('height', targetH);
-    liquidEl.setAttribute('position', `0 ${targetH/2} 0`);
-    liquidEl.setAttribute('material', `opacity:0.9;transparent:true;emissive:${cls.color};emissiveIntensity:0.8;`);
-
-    // hide loading when data arrives
-    if (loading) loading.style.display = 'none';
-  });
-
-  // initial drawing
-  drawChart();
-  drawSmallChart();
-
-  // hide loading when AR renderer starts
-  document.querySelector('a-scene').addEventListener('renderstart', ()=>{
-    setTimeout(()=>{ if (loading) loading.style.display = 'none'; }, 600);
-  });
-
-  // resize canvas initially
-  window.addEventListener('load', resizeCanvas);
-  </script>
-</body>
-</html>
 
 
