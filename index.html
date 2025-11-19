@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>pHFLEX — Mobile-first AR (camera top)</title>
+<title>pHFLEX — AR (Floating UI)</title>
 
 <!-- A-Frame + AR.js -->
 <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
@@ -14,111 +14,109 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
 <style>
-  :root{
-    --bg:#031218;
-    --panel: rgba(255,255,255,0.02);
-    --muted:#9aa7b2;
-    --accent:#33ff77;
-  }
-  html,body{height:100%;margin:0;background:linear-gradient(180deg,#041016,#071827);font-family:Inter,system-ui,Arial;color:#e8f6f4}
-  .wrap{max-width:1000px;margin:0 auto;padding:10px;box-sizing:border-box}
-
-  /* MOBILE-FIRST: single column */
-  .ar-card{background:var(--panel);border-radius:10px;padding:8px;position:relative;overflow:hidden;margin-bottom:10px}
-  .hud-card{background:var(--panel);border-radius:10px;padding:10px;display:flex;gap:12px;align-items:center;margin-bottom:10px}
-  .info-card{background:var(--panel);border-radius:10px;padding:12px;color:var(--muted)}
-
-  /* make the A-Frame scene transparent and sized for mobile */
+  html,body{height:100%;margin:0;background:#02121a;font-family:Inter,system-ui,Arial;color:#eaf7f2}
+  .wrap{max-width:900px;margin:0 auto;padding:8px;box-sizing:border-box}
+  .scene-wrap{width:100%;height:78vh;min-height:420px;border-radius:10px;overflow:hidden;position:relative;background:transparent}
+  /* Transparent canvas/video */
   a-scene, .a-scene, .a-canvas, canvas { background: transparent !important; }
-  canvas.a-canvas { position:absolute !important; inset:0 !important; z-index: 2 !important; pointer-events:none; background: transparent !important; }
+  canvas.a-canvas { position:absolute !important; inset:0 !important; z-index:2 !important; pointer-events:none; background: transparent !important; }
   video { position:absolute !important; top:0 !important; left:0 !important; width:100% !important; height:100% !important; object-fit:cover !important; z-index:1 !important; }
 
-  /* scene height: tall enough for vertical phones */
-  .scene-wrap { width:100%; height:70vh; min-height:380px; border-radius:8px; overflow:hidden; background:transparent; position:relative; }
-
-  .phVal{font-size:20px;color:var(--accent);font-weight:700}
-  .cat{font-size:15px;color:#ffd97a}
-  .hint{color:var(--muted);font-size:13px;margin-left:auto}
-
-  .loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:60;background:linear-gradient(180deg,rgba(0,0,0,0.45),transparent);font-size:16px}
-
+  .loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:60;background:linear-gradient(180deg,rgba(0,0,0,0.45),transparent);font-size:15px}
+  .hud{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .hint{color:#9aa7b2;font-size:13px}
+  .noteSmall{color:#bfeee0;font-size:13px}
   @media(min-width:900px){
-    /* on wide screens allow two-column layout but still keep camera visible */
-    .layout{display:flex;gap:12px}
-    .left{flex:1.3}
-    .right{flex:0.9;min-width:300px}
-    .scene-wrap{height:62vh}
+    .wrap{display:flex;gap:12px}
+    .left{flex:1}
+    .right{flex:0.55;min-width:300px}
   }
 </style>
 </head>
 <body>
   <div class="wrap">
 
-    <!-- On mobile this is single column (AR on top). On wide screens, layout becomes two-column but camera remains visible. -->
-    <div class="layout">
-
-      <!-- LEFT: AR area (or full-width on mobile) -->
-      <div class="left">
-        <div class="ar-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <div style="font-weight:700">pHFLEX — AR</div>
-            <div class="hint">Point camera at Hiro marker</div>
-          </div>
-
-          <div class="scene-wrap">
-            <div id="loader" class="loader">Initializing camera & AR — allow camera access</div>
-
-            <a-scene embedded
-                     arjs="sourceType: webcam; debugUIEnabled: false;"
-                     renderer="logarithmicDepthBuffer: true; alpha: true;"
-                     vr-mode-ui="enabled:false">
-
-              <a-marker preset="hiro" id="hiroMarker">
-                <a-entity id="container" scale="0.60 0.60 0.60">
-
-                  <!-- liquid -->
-                  <a-box id="liquid" position="0 0.10 0" width="0.10" height="0.16" depth="0.10"
-                         material="opacity:0.95;transparent:true;emissive:#33ff77;"></a-box>
-
-                  <!-- short labels -->
-                  <a-entity id="phText" visible="false" position="0 0.36 0"
-                            text="value:pH: -- ; align:center; width:2.0; color:white"></a-entity>
-
-                  <a-entity id="catText" visible="false" position="0 0.52 0"
-                            text="value:Category: -- ; align:center; width:2.0; color:#ffd97a"></a-entity>
-
-                </a-entity>
-              </a-marker>
-
-              <a-entity camera></a-entity>
-            </a-scene>
-          </div>
-        </div>
-
-        <!-- HUD below AR -->
-        <div class="hud-card">
-          <div class="phVal" id="phVal">pH: --</div>
-          <div class="cat" id="catLabel">Category: --</div>
-          <div class="hint" id="liveHint">Waiting for live data</div>
-        </div>
+    <!-- FULL WIDTH AR scene area (left on wide screens) -->
+    <div class="left" style="width:100%">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-weight:700">pHFLEX — AR (Floating UI)</div>
+        <div class="hint">Point camera at Hiro marker • Tap to focus</div>
       </div>
 
-      <!-- RIGHT: info (on mobile this stacks below AR; on wide screens it sits to the right) -->
-      <div class="right">
-        <div class="info-card">
-          <div style="font-weight:700;margin-bottom:8px">University-level notes</div>
-          <div>
-            pH = −log[H⁺]. Calibrate probe with buffers (pH 4, 7, 10). Temperature and ionic strength affect electrode response.
-            For best AR tracking: print the Hiro marker on matte paper, use good lighting, and keep marker flat.
-          </div>
-          <hr style="border:none;height:1px;background:rgba(255,255,255,0.03);margin:10px 0">
-          <div style="color:var(--muted);font-size:13px">
-            • If camera goes black: try Chrome (Android), allow camera, close other camera apps, or reboot device.<br/>
-            • If marker doesn’t appear: make marker fill ~25–60% of the frame, steady and flat.
-          </div>
-        </div>
+      <div class="scene-wrap">
+        <div id="loader" class="loader">Initializing camera & AR — allow camera access</div>
+
+        <!-- A-Frame scene with transparent renderer -->
+        <a-scene embedded
+                 arjs="sourceType: webcam; debugUIEnabled: false;"
+                 renderer="logarithmicDepthBuffer: true; alpha: true;"
+                 vr-mode-ui="enabled:false">
+
+          <!-- marker -->
+          <a-marker preset="hiro" id="hiroMarker">
+
+            <!-- central container (everything moves with the marker) -->
+            <a-entity id="group" scale="0.7 0.7 0.7">
+
+              <!-- Cube (the main object) -->
+              <a-box id="cube"
+                     position="0 0.08 0"
+                     width="0.14" depth="0.14" height="0.14"
+                     material="color:#12343a;metalness:0.2;roughness:0.4"
+                     animation__bob="property:position; to:0 0.1 0; dir:alternate; dur:1500; loop:true; easing:easeInOutSine">
+              </a-box>
+
+              <!-- translucent liquid overlay on cube (slightly smaller) -->
+              <a-box id="liquid"
+                     position="0 0.04 0"
+                     width="0.12" depth="0.12" height="0.10"
+                     material="opacity:0.7;transparent:true;emissive:#33ff77;emissiveIntensity:0.7">
+              </a-box>
+
+              <!-- Floating pH text ON cube (front) -->
+              <a-entity id="phLabel" position="0 0.32 0.06"
+                        text="value:pH: -- ; align:center; width:1.6; color:#ffffff; shader:msdf; font:mozillavr"></a-entity>
+
+              <!-- Tiny status text under pH -->
+              <a-entity id="statusLabel" position="0 0.20 0.06"
+                        text="value:Status: -- ; align:center; width:1.6; color:#ffd97a; shader:msdf;"></a-entity>
+
+              <!-- Floating mini-chart (bars) to the right of cube -->
+              <a-entity id="miniChart" position="0.35 0 0" rotation="0 0 -10">
+                <!-- we'll programmatically create bars child entities in JS -->
+              </a-entity>
+
+              <!-- 3 floating info cards around the cube (short lines) -->
+              <a-entity id="info1" position="-0.35 0.30 0" rotation="0 20 0"
+                        text="value:Buffer tip: Calibrate with pH 4 & 7; align:center; width:1.2; color:#cfeef0; shader:msdf;">
+              </a-entity>
+
+              <a-entity id="info2" position="0.0 0.45 -0.35" rotation="10 0 0"
+                        text="value:Titration hint: endpoint shows rapid pH change; align:center; width:1.2; color:#bfe6ff; shader:msdf;">
+              </a-entity>
+
+              <a-entity id="info3" position="0.35 0.25 0.25" rotation="0 -25 0"
+                        text="value:Electrode care: rinse & store in KCl; align:center; width:1.2; color:#d7f7d9; shader:msdf;">
+              </a-entity>
+
+            </a-entity>
+          </a-marker>
+
+          <a-entity camera></a-entity>
+        </a-scene>
+      </div>
+
+      <!-- HUD below scene (simple) -->
+      <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-size:18px;color:#33ff77;font-weight:700" id="hudPH">pH: --</div>
+        <div id="hudCat" style="color:#ffd97a">Category: --</div>
+        <div style="margin-left:auto" class="noteSmall">Live chart floats next to the cube</div>
       </div>
     </div>
+
+    <!-- RIGHT (optional) — kept small; user asked to remove big blocks so this can stay empty or hold tiny controls -->
+    <div class="right" style="display:none"></div>
+
   </div>
 
 <script>
@@ -132,17 +130,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ---------- DOM refs ---------- */
-const loader = document.getElementById('loader');
-const phText = document.getElementById('phText');
-const catText = document.getElementById('catText');
-const liquid = document.getElementById('liquid');
-
-const phVal = document.getElementById('phVal');
-const catLabel = document.getElementById('catLabel');
-const liveHint = document.getElementById('liveHint');
-
-/* ---------- helper classify ---------- */
+/* ---------- visual helpers ---------- */
 function classifyPH(pH){
   if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
   if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
@@ -151,29 +139,107 @@ function classifyPH(pH){
   return {label:'Strong base', color:'#3377ff'};
 }
 
-/* ---------- marker events ---------- */
+/* ---------- create mini-chart bars (8 bars) ---------- */
+const miniChart = document.querySelector('#miniChart');
+const BAR_COUNT = 8;
+const bars = [];
+for (let i=0;i<BAR_COUNT;i++){
+  const box = document.createElement('a-box');
+  // position bars left-to-right
+  const x = (i - (BAR_COUNT-1)/2) * 0.06; // spacing
+  box.setAttribute('id', 'bar'+i);
+  box.setAttribute('position', `${x} 0.03 0`);
+  box.setAttribute('width', '0.05');
+  box.setAttribute('depth', '0.02');
+  box.setAttribute('height', '0.06');
+  box.setAttribute('material', 'color:#2b6b6a; opacity:0.95; transparent:true');
+  miniChart.appendChild(box);
+  bars.push(box);
+}
+
+/* ---------- Firebase listener & state ---------- */
+const HISTORY_MAX = BAR_COUNT;
+const history = []; // most recent last
+
+const phLabel = document.querySelector('#phLabel');
+const statusLabel = document.querySelector('#statusLabel');
+const hudPH = document.getElementById('hudPH');
+const hudCat = document.getElementById('hudCat');
+const liquid = document.querySelector('#liquid');
+const cube = document.querySelector('#cube');
+
+db.ref("/pHFlex/currentValue").on("value", (snap) => {
+  const value = snap.val();
+  if (value === null || value === undefined) return;
+  const pH = parseFloat(value);
+  if (isNaN(pH)) return;
+
+  // update HUD
+  hudPH.innerText = 'pH: ' + pH.toFixed(2);
+  const cls = classifyPH(pH);
+  hudCat.innerText = cls.label;
+  hudCat.style.color = cls.color;
+
+  // update AR labels
+  if (phLabel) phLabel.setAttribute('text', 'value', 'pH: ' + pH.toFixed(2));
+  if (statusLabel) statusLabel.setAttribute('text', 'value', cls.label);
+
+  // update liquid color
+  if (liquid) liquid.setAttribute('material', `opacity:0.7;transparent:true;emissive:${cls.color};emissiveIntensity:0.85;`);
+
+  // update cube glow slightly
+  if (cube) cube.setAttribute('material', `color:#12343a;emissive:${cls.color};emissiveIntensity:0.06`);
+
+  // push into mini history
+  history.push(pH);
+  if (history.length > HISTORY_MAX) history.shift();
+
+  // update mini chart bars heights (map pH 0-14 to bar heights 0.03-0.20)
+  for (let i=0;i<BAR_COUNT;i++){
+    const bar = bars[i];
+    const histIndex = i - (BAR_COUNT - history.length);
+    if (histIndex >= 0 && history[histIndex] !== undefined){
+      const val = history[histIndex];
+      const h = 0.03 + (Math.max(0, Math.min(14, val)) / 14) * 0.18;
+      bar.setAttribute('height', h.toFixed(3));
+      // reposition y to half height
+      bar.setAttribute('position', `${(i - (BAR_COUNT-1)/2) * 0.06} ${ (h/2).toFixed(3) } 0`);
+      bar.setAttribute('material', `color:${cls.color};opacity:0.95;`);
+    } else {
+      // faded small bar for empty
+      bar.setAttribute('height', 0.03);
+      bar.setAttribute('position', `${(i - (BAR_COUNT-1)/2) * 0.06} 0.015 0`);
+      bar.setAttribute('material', 'color:#223636;opacity:0.6;');
+    }
+  }
+});
+
+/* ---------- marker pop animation & visibility ---------- */
 const marker = document.querySelector('#hiroMarker');
-if (marker) {
-  marker.addEventListener('markerFound', () => {
+if (marker){
+  marker.addEventListener('markerFound', ()=> {
     console.log('markerFound');
-    if (phText) phText.setAttribute('visible', true);
-    if (catText) catText.setAttribute('visible', true);
-    if (phText) phText.setAttribute('animation__pop','property:scale; to:1.12 1.12 1; dur:220; easing:easeOutQuad; loop:1');
+    // make labels visible and do a pop animation
+    phLabel.setAttribute('visible', true);
+    statusLabel.setAttribute('visible', true);
+    phLabel.setAttribute('animation__pop', 'property:scale; to:1.12 1.12 1; dur:220; easing:easeOutQuad; loop:1');
+    // also scale up the mini chart slightly
+    miniChart.setAttribute('animation__scale', 'property:scale; to:1.05 1.05 1; dur:350; easing:easeOutElastic; loop:1');
   });
-  marker.addEventListener('markerLost', () => {
+  marker.addEventListener('markerLost', ()=> {
     console.log('markerLost');
-    if (phText) phText.setAttribute('visible', false);
-    if (catText) catText.setAttribute('visible', false);
+    phLabel.setAttribute('visible', false);
+    statusLabel.setAttribute('visible', false);
   });
 }
 
-/* ---------- ensure canvas/video styles on renderstart ---------- */
+/* ---------- make canvas/video transparent on renderstart ---------- */
 document.querySelector('a-scene').addEventListener('renderstart', () => {
-  console.log('renderstart');
+  console.log('A-Frame renderstart — making video/canvas visible');
+  const loader = document.getElementById('loader');
   if (loader) loader.style.display = 'none';
-
   const canv = document.querySelector('canvas.a-canvas') || document.querySelector('canvas');
-  if (canv) {
+  if (canv){
     canv.style.background = 'transparent';
     canv.style.zIndex = 2;
     canv.style.position = 'absolute';
@@ -182,9 +248,8 @@ document.querySelector('a-scene').addEventListener('renderstart', () => {
     canv.style.width = '100%';
     canv.style.height = '100%';
   }
-
   const vid = document.querySelector('video');
-  if (vid) {
+  if (vid){
     vid.style.position = 'absolute';
     vid.style.top = '0';
     vid.style.left = '0';
@@ -192,54 +257,10 @@ document.querySelector('a-scene').addEventListener('renderstart', () => {
     vid.style.height = '100%';
     vid.style.objectFit = 'cover';
     vid.style.zIndex = 1;
-    console.log('video ready size:', vid.videoWidth, vid.videoHeight);
-  } else {
-    console.warn('video element not found yet');
   }
 });
 
-/* ---------- Firebase listener ---------- */
-db.ref("/pHFlex/currentValue").on("value", (snap) => {
-  const val = snap.val();
-  if (val === null || val === undefined) {
-    liveHint.innerText = 'No pH data';
-    if (phText) phText.setAttribute('text', 'value', 'No pH data');
-    return;
-  }
-  const pH = parseFloat(val);
-  if (isNaN(pH)) return;
-
-  // HUD
-  phVal.innerText = 'pH: ' + pH.toFixed(2);
-  const cls = classifyPH(pH);
-  catLabel.innerText = cls.label;
-  catLabel.style.color = cls.color;
-
-  // AR
-  if (phText) phText.setAttribute('text','value','pH: ' + pH.toFixed(2));
-  if (catText) catText.setAttribute('text','value', cls.label);
-  if (catText) catText.setAttribute('text','color', cls.color);
-
-  liveHint.innerText = 'Live';
-
-  // liquid animation (small)
-  if (liquid) {
-    liquid.setAttribute('material', `opacity:0.95;transparent:true;emissive:${cls.color};emissiveIntensity:0.9`);
-    const startY = parseFloat(liquid.getAttribute('position').y) || 0.10;
-    const targetY = 0.05 + (Math.max(0, Math.min(14, pH)) / 14) * 0.18;
-    const dur = 600;
-    const t0 = performance.now();
-    (function step(ts){
-      const p = Math.min(1,(ts - t0)/dur);
-      const eased = p<0.5 ? 2*p*p : -1 + (4 - 2*p)*p;
-      const y = startY + (targetY - startY)*eased;
-      liquid.setAttribute('position', `0 ${y} 0`);
-      if (p < 1) requestAnimationFrame(step);
-    })(t0);
-  }
-});
-
-/* ---------- camera watchdog (single reload attempt) ---------- */
+/* ---------- small camera watchdog (single reload attempt) ---------- */
 (function cameraWatchdog(){
   let reloaded = false;
   function findVideo(){ return document.querySelector('video'); }
@@ -247,10 +268,10 @@ db.ref("/pHFlex/currentValue").on("value", (snap) => {
     const v = findVideo();
     if (!v) return;
     if ((v.videoWidth === 0 || v.readyState < 2 || v.paused) && !reloaded) {
-      console.warn('[watchdog] video looks dead — attempting reload');
+      console.warn('[watchdog] video looks dead — reloading');
       try { const s = v.srcObject; if (s && s.getTracks) s.getTracks().forEach(t=>t.stop()); } catch(e){}
       reloaded = true;
-      setTimeout(()=> location.reload(), 600);
+      setTimeout(()=> location.reload(), 700);
     }
     const s = v.srcObject;
     if (s && s.getVideoTracks) {
@@ -263,7 +284,7 @@ db.ref("/pHFlex/currentValue").on("value", (snap) => {
     }
   }
   const id = setInterval(inspect, 900);
-  setTimeout(()=>{ clearInterval(id); console.log('[watchdog] stopped checks');}, 30000);
+  setTimeout(()=>{ clearInterval(id); }, 30000);
 })();
 
 </script>
