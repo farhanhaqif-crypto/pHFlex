@@ -1,292 +1,159 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>pHFLEX — AR (Floating UI)</title>
+  <head>
+    <meta charset="UTF-8" />
+    <title>pHFLEX WebAR (Hiro Marker)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
-<!-- A-Frame + AR.js -->
-<script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
+    <!-- A-Frame + AR.js -->
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.3/aframe/build/aframe-ar.min.js"></script>
 
-<!-- Firebase compat -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
-<style>
-  html,body{height:100%;margin:0;background:#02121a;font-family:Inter,system-ui,Arial;color:#eaf7f2}
-  .wrap{max-width:900px;margin:0 auto;padding:8px;box-sizing:border-box}
-  .scene-wrap{width:100%;height:78vh;min-height:420px;border-radius:10px;overflow:hidden;position:relative;background:transparent}
-  /* Transparent canvas/video */
-  a-scene, .a-scene, .a-canvas, canvas { background: transparent !important; }
-  canvas.a-canvas { position:absolute !important; inset:0 !important; z-index:2 !important; pointer-events:none; background: transparent !important; }
-  video { position:absolute !important; top:0 !important; left:0 !important; width:100% !important; height:100% !important; object-fit:cover !important; z-index:1 !important; }
+    <style>
+      body { margin: 0; overflow: hidden; }
+      .loading {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        background: #000; color: #fff; font-family: sans-serif; z-index: 10;
+      }
+    </style>
+  </head>
 
-  .loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:60;background:linear-gradient(180deg,rgba(0,0,0,0.45),transparent);font-size:15px}
-  .hud{display:flex;gap:10px;align-items:center;margin-top:8px}
-  .hint{color:#9aa7b2;font-size:13px}
-  .noteSmall{color:#bfeee0;font-size:13px}
-  @media(min-width:900px){
-    .wrap{display:flex;gap:12px}
-    .left{flex:1}
-    .right{flex:0.55;min-width:300px}
-  }
-</style>
-</head>
-<body>
-  <div class="wrap">
+  <body>
+    <div class="loading" id="loading">Initializing camera… Please wait</div>
 
-    <!-- FULL WIDTH AR scene area (left on wide screens) -->
-    <div class="left" style="width:100%">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="font-weight:700">pHFLEX — AR (Floating UI)</div>
-        <div class="hint">Point camera at Hiro marker • Tap to focus</div>
-      </div>
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false"
+      renderer="logarithmicDepthBuffer: true;"
+    >
+      <!-- ✅ Use the built-in Hiro marker -->
+      <a-marker preset="hiro">
 
-      <div class="scene-wrap">
-        <div id="loader" class="loader">Initializing camera & AR — allow camera access</div>
+        <!-- Glowing transparent cube -->
+        <a-box
+          id="liquid"
+          position="0 0.1 0"
+          depth="0.1"
+          height="0.2"
+          width="0.1"
+          color="#33ff77"
+          material="opacity:0.6;transparent:true;emissive:#33ff77;emissiveIntensity:0.6;metalness:0.3;roughness:0.1;"
+          animation__glow="property:material.emissiveIntensity;dir:alternate;dur:1500;easing:easeInOutSine;loop:true;to:1"
+        ></a-box>
 
-        <!-- A-Frame scene with transparent renderer -->
-        <a-scene embedded
-                 arjs="sourceType: webcam; debugUIEnabled: false;"
-                 renderer="logarithmicDepthBuffer: true; alpha: true;"
-                 vr-mode-ui="enabled:false">
+        <!-- Labels -->
+        <a-entity id="phText" position="0 0.5 0"
+          text="value:pH Value: Waiting...; align:center; width:3; color:white"></a-entity>
+        <a-entity id="statusText" position="0 0.7 0"
+          text="value:Status: Waiting...; align:center; width:3; color:yellow"></a-entity>
+        <a-entity id="exampleText" position="0 0.9 0"
+          text="value:Example: Tap water 💧; align:center; width:3; color:lightgreen"></a-entity>
+        <a-entity id="formulaText" position="0 1.1 0"
+          text="value:Formula: pH = -log[H⁺]; align:center; width:3; color:cyan"></a-entity>
+        <a-entity id="sifatText" position="0 1.3 0"
+          text="value:Sifat: Neutral solution; align:center; width:3; color:orange"></a-entity>
 
-          <!-- marker -->
-          <a-marker preset="hiro" id="hiroMarker">
+      </a-marker>
 
-            <!-- central container (everything moves with the marker) -->
-            <a-entity id="group" scale="0.7 0.7 0.7">
+      <a-entity camera></a-entity>
+    </a-scene>
 
-              <!-- Cube (the main object) -->
-              <a-box id="cube"
-                     position="0 0.08 0"
-                     width="0.14" depth="0.14" height="0.14"
-                     material="color:#12343a;metalness:0.2;roughness:0.4"
-                     animation__bob="property:position; to:0 0.1 0; dir:alternate; dur:1500; loop:true; easing:easeInOutSine">
-              </a-box>
-
-              <!-- translucent liquid overlay on cube (slightly smaller) -->
-              <a-box id="liquid"
-                     position="0 0.04 0"
-                     width="0.12" depth="0.12" height="0.10"
-                     material="opacity:0.7;transparent:true;emissive:#33ff77;emissiveIntensity:0.7">
-              </a-box>
-
-              <!-- Floating pH text ON cube (front) -->
-              <a-entity id="phLabel" position="0 0.32 0.06"
-                        text="value:pH: -- ; align:center; width:1.6; color:#ffffff; shader:msdf; font:mozillavr"></a-entity>
-
-              <!-- Tiny status text under pH -->
-              <a-entity id="statusLabel" position="0 0.20 0.06"
-                        text="value:Status: -- ; align:center; width:1.6; color:#ffd97a; shader:msdf;"></a-entity>
-
-              <!-- Floating mini-chart (bars) to the right of cube -->
-              <a-entity id="miniChart" position="0.35 0 0" rotation="0 0 -10">
-                <!-- we'll programmatically create bars child entities in JS -->
-              </a-entity>
-
-              <!-- 3 floating info cards around the cube (short lines) -->
-              <a-entity id="info1" position="-0.35 0.30 0" rotation="0 20 0"
-                        text="value:Buffer tip: Calibrate with pH 4 & 7; align:center; width:1.2; color:#cfeef0; shader:msdf;">
-              </a-entity>
-
-              <a-entity id="info2" position="0.0 0.45 -0.35" rotation="10 0 0"
-                        text="value:Titration hint: endpoint shows rapid pH change; align:center; width:1.2; color:#bfe6ff; shader:msdf;">
-              </a-entity>
-
-              <a-entity id="info3" position="0.35 0.25 0.25" rotation="0 -25 0"
-                        text="value:Electrode care: rinse & store in KCl; align:center; width:1.2; color:#d7f7d9; shader:msdf;">
-              </a-entity>
-
-            </a-entity>
-          </a-marker>
-
-          <a-entity camera></a-entity>
-        </a-scene>
-      </div>
-
-      <!-- HUD below scene (simple) -->
-      <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="font-size:18px;color:#33ff77;font-weight:700" id="hudPH">pH: --</div>
-        <div id="hudCat" style="color:#ffd97a">Category: --</div>
-        <div style="margin-left:auto" class="noteSmall">Live chart floats next to the cube</div>
-      </div>
-    </div>
-
-    <!-- RIGHT (optional) — kept small; user asked to remove big blocks so this can stay empty or hold tiny controls -->
-    <div class="right" style="display:none"></div>
-
-  </div>
-
-<script>
-/* ---------- Firebase config ---------- */
-const firebaseConfig = {
-  apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
-  authDomain: "phflex-48cfa.firebaseapp.com",
-  databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  projectId: "phflex-48cfa"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-/* ---------- visual helpers ---------- */
-function classifyPH(pH){
-  if (pH <= 3) return {label:'Strong acid', color:'#ff3333'};
-  if (pH > 3 && pH < 7) return {label:'Mild acid', color:'#ff8b6b'};
-  if (Math.abs(pH - 7) < 0.0001) return {label:'Neutral', color:'#33ff77'};
-  if (pH > 7 && pH < 11) return {label:'Mild base', color:'#86b7ff'};
-  return {label:'Strong base', color:'#3377ff'};
-}
-
-/* ---------- create mini-chart bars (8 bars) ---------- */
-const miniChart = document.querySelector('#miniChart');
-const BAR_COUNT = 8;
-const bars = [];
-for (let i=0;i<BAR_COUNT;i++){
-  const box = document.createElement('a-box');
-  // position bars left-to-right
-  const x = (i - (BAR_COUNT-1)/2) * 0.06; // spacing
-  box.setAttribute('id', 'bar'+i);
-  box.setAttribute('position', `${x} 0.03 0`);
-  box.setAttribute('width', '0.05');
-  box.setAttribute('depth', '0.02');
-  box.setAttribute('height', '0.06');
-  box.setAttribute('material', 'color:#2b6b6a; opacity:0.95; transparent:true');
-  miniChart.appendChild(box);
-  bars.push(box);
-}
-
-/* ---------- Firebase listener & state ---------- */
-const HISTORY_MAX = BAR_COUNT;
-const history = []; // most recent last
-
-const phLabel = document.querySelector('#phLabel');
-const statusLabel = document.querySelector('#statusLabel');
-const hudPH = document.getElementById('hudPH');
-const hudCat = document.getElementById('hudCat');
-const liquid = document.querySelector('#liquid');
-const cube = document.querySelector('#cube');
-
-db.ref("/pHFlex/currentValue").on("value", (snap) => {
-  const value = snap.val();
-  if (value === null || value === undefined) return;
-  const pH = parseFloat(value);
-  if (isNaN(pH)) return;
-
-  // update HUD
-  hudPH.innerText = 'pH: ' + pH.toFixed(2);
-  const cls = classifyPH(pH);
-  hudCat.innerText = cls.label;
-  hudCat.style.color = cls.color;
-
-  // update AR labels
-  if (phLabel) phLabel.setAttribute('text', 'value', 'pH: ' + pH.toFixed(2));
-  if (statusLabel) statusLabel.setAttribute('text', 'value', cls.label);
-
-  // update liquid color
-  if (liquid) liquid.setAttribute('material', `opacity:0.7;transparent:true;emissive:${cls.color};emissiveIntensity:0.85;`);
-
-  // update cube glow slightly
-  if (cube) cube.setAttribute('material', `color:#12343a;emissive:${cls.color};emissiveIntensity:0.06`);
-
-  // push into mini history
-  history.push(pH);
-  if (history.length > HISTORY_MAX) history.shift();
-
-  // update mini chart bars heights (map pH 0-14 to bar heights 0.03-0.20)
-  for (let i=0;i<BAR_COUNT;i++){
-    const bar = bars[i];
-    const histIndex = i - (BAR_COUNT - history.length);
-    if (histIndex >= 0 && history[histIndex] !== undefined){
-      const val = history[histIndex];
-      const h = 0.03 + (Math.max(0, Math.min(14, val)) / 14) * 0.18;
-      bar.setAttribute('height', h.toFixed(3));
-      // reposition y to half height
-      bar.setAttribute('position', `${(i - (BAR_COUNT-1)/2) * 0.06} ${ (h/2).toFixed(3) } 0`);
-      bar.setAttribute('material', `color:${cls.color};opacity:0.95;`);
-    } else {
-      // faded small bar for empty
-      bar.setAttribute('height', 0.03);
-      bar.setAttribute('position', `${(i - (BAR_COUNT-1)/2) * 0.06} 0.015 0`);
-      bar.setAttribute('material', 'color:#223636;opacity:0.6;');
-    }
-  }
-});
-
-/* ---------- marker pop animation & visibility ---------- */
-const marker = document.querySelector('#hiroMarker');
-if (marker){
-  marker.addEventListener('markerFound', ()=> {
-    console.log('markerFound');
-    // make labels visible and do a pop animation
-    phLabel.setAttribute('visible', true);
-    statusLabel.setAttribute('visible', true);
-    phLabel.setAttribute('animation__pop', 'property:scale; to:1.12 1.12 1; dur:220; easing:easeOutQuad; loop:1');
-    // also scale up the mini chart slightly
-    miniChart.setAttribute('animation__scale', 'property:scale; to:1.05 1.05 1; dur:350; easing:easeOutElastic; loop:1');
-  });
-  marker.addEventListener('markerLost', ()=> {
-    console.log('markerLost');
-    phLabel.setAttribute('visible', false);
-    statusLabel.setAttribute('visible', false);
-  });
-}
-
-/* ---------- make canvas/video transparent on renderstart ---------- */
-document.querySelector('a-scene').addEventListener('renderstart', () => {
-  console.log('A-Frame renderstart — making video/canvas visible');
-  const loader = document.getElementById('loader');
-  if (loader) loader.style.display = 'none';
-  const canv = document.querySelector('canvas.a-canvas') || document.querySelector('canvas');
-  if (canv){
-    canv.style.background = 'transparent';
-    canv.style.zIndex = 2;
-    canv.style.position = 'absolute';
-    canv.style.top = '0';
-    canv.style.left = '0';
-    canv.style.width = '100%';
-    canv.style.height = '100%';
-  }
-  const vid = document.querySelector('video');
-  if (vid){
-    vid.style.position = 'absolute';
-    vid.style.top = '0';
-    vid.style.left = '0';
-    vid.style.width = '100%';
-    vid.style.height = '100%';
-    vid.style.objectFit = 'cover';
-    vid.style.zIndex = 1;
-  }
-});
-
-/* ---------- small camera watchdog (single reload attempt) ---------- */
-(function cameraWatchdog(){
-  let reloaded = false;
-  function findVideo(){ return document.querySelector('video'); }
-  function inspect(){
-    const v = findVideo();
-    if (!v) return;
-    if ((v.videoWidth === 0 || v.readyState < 2 || v.paused) && !reloaded) {
-      console.warn('[watchdog] video looks dead — reloading');
-      try { const s = v.srcObject; if (s && s.getTracks) s.getTracks().forEach(t=>t.stop()); } catch(e){}
-      reloaded = true;
-      setTimeout(()=> location.reload(), 700);
-    }
-    const s = v.srcObject;
-    if (s && s.getVideoTracks) {
-      s.getVideoTracks().forEach(tr => {
-        if (!tr.__watchdog) {
-          tr.__watchdog = true;
-          tr.addEventListener('ended', ()=> { if (!reloaded){ reloaded = true; setTimeout(()=>location.reload(),400); } });
-        }
+    <script>
+      // Hide loading after camera starts
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          document.getElementById("loading").style.display = "none";
+        }, 2500);
       });
-    }
-  }
-  const id = setInterval(inspect, 900);
-  setTimeout(()=>{ clearInterval(id); }, 30000);
-})();
 
-</script>
-</body>
+      // Firebase config
+      const firebaseConfig = {
+        apiKey: "AIzaSyDKhPXV8oFJNVYJUNpIE09MRBtR_jl-tmU",
+        authDomain: "phflex-48cfa.firebaseapp.com",
+        databaseURL: "https://phflex-48cfa-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "phflex-48cfa",
+        storageBucket: "phflex-48cfa.firebasestorage.app",
+        messagingSenderId: "1019182703407",
+        appId: "1:1019182703407:web:6e1c5834f611208c59f7da",
+        measurementId: "G-80XN89H5P1",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      const phText = document.querySelector("#phText");
+      const statusText = document.querySelector("#statusText");
+      const exampleText = document.querySelector("#exampleText");
+      const sifatText = document.querySelector("#sifatText");
+      const liquid = document.querySelector("#liquid");
+
+      function animatePosition(entity, startY, endY, duration = 1000) {
+        let start = null;
+        function step(timestamp) {
+          if (!start) start = timestamp;
+          const progress = Math.min((timestamp - start) / duration, 1);
+          const y = startY + (endY - startY) * progress;
+          entity.setAttribute("position", `0 ${y} 0`);
+          if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
+
+      // Listen for live data from Firebase
+      db.ref("/pHFlex/currentValue").on("value", (snap) => {
+        const value = snap.val();
+        if (value === null || value === "") {
+          phText.setAttribute("text", "value", "No pH data found!");
+          return;
+        }
+
+        const pH = parseFloat(value);
+        phText.setAttribute("text", "value", "pH Value: " + pH.toFixed(2));
+
+        let color = "#33ff77";
+        let status = "";
+        let example = "";
+        let sifat = "";
+        let height = 0.1;
+
+        if (pH < 7) {
+          color = "#ff3333";
+          status = "Acidic (Asid)";
+          sifat = "Menghakis, rasa masam.";
+          example = pH < 3 ? "Example: Asid kuat (asid sulfurik, jus lemon)" : "Example: Asid lemah (cuka, minuman berkarbonat)";
+          height = 0.05 + (pH / 14);
+        } else if (pH > 7) {
+          color = "#3388ff";
+          status = "Basic (Alkali)";
+          sifat = "Licin, rasa sabun.";
+          example = pH > 11 ? "Example: Alkali kuat (peluntur, ammonia)" : "Example: Alkali lemah (sabun, air sabun)";
+          height = 0.15 + (pH / 70);
+        } else {
+          color = "#33ff77";
+          status = "Neutral";
+          example = "Example: Air suling";
+          sifat = "Tidak berasid / tidak beralkali";
+          height = 0.1;
+        }
+
+        liquid.setAttribute("color", color);
+        liquid.setAttribute("material",
+          `opacity:0.6;transparent:true;emissive:${color};emissiveIntensity:0.8;metalness:0.3;roughness:0.1;`);
+        animatePosition(liquid, parseFloat(liquid.getAttribute("position").y), height, 1000);
+        statusText.setAttribute("text", "value", status);
+        exampleText.setAttribute("text", "value", example);
+        sifatText.setAttribute("text", "value", sifat);
+      });
+    </script>
+  </body>
 </html>
+
+
+
+
